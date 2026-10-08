@@ -1,0 +1,63 @@
+{
+  "name": "@package/desktop",
+  "version": "1.2.1",
+  "description": "Empaquetado de escritorio   de Packet Tools",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "package": "node scripts/build.mjs",
+    "packager": "electron-builder"
+  },
+  "keywords": [],
+  "author": "ph0",
+  "license": "MIT and ISC",
+  "type": "commonjs",
+  "devDependencies": {
+    "bytenode": "^1.7.0",
+    "electron": "^44.4.1",
+    "electron-builder": "^26.15.3",
+    "typescript": "^5.9.3"
+  },
+  "build": {
+    "appId": "com.ph0.packetTools",
+    "productName": "Packet Tools",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "main.js",
+      "package.json",
+      "assets/**/*"
+    ],
+    "asar": true,
+    "extraResources": [
+      {
+        "from": ".staging/resources",
+        "to": "app"
+      }
+    ],
+    "win": {
+      "target": [
+        "nsis"
+      ],
+      "icon": "assets/ico.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "installerIcon": "assets/ico.ico",
+      "uninstallerIcon": "assets/ico.ico",
+      "shortcutName": "Packet Tools"
+    },
+    "linux": {
+      "target": [
+        "AppImage",
+        "deb"
+      ],
+      "icon": "assets/ico.png",
+      "category": "Network",
+      "maintainer": "ph0Byte"
+    },
+    "removePackageScripts": false
+  }
+}

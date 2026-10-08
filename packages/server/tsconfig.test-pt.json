@@ -1,0 +1,17 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "rootDir": "."
+  },
+  "include": [
+    "test/test-pt/**/*",
+    "test/test-terminal/**/*",
+    "test/test-telnet/**/*",
+    "test/test-ssh/**/*",
+    "test/test-serial/**/*",
+    "test/test-gns3/**/*",
+    "scripts/**/*",
+    "src/types/**/*"
+  ]
+}

@@ -1,0 +1,4 @@
+!src/prisma/generated/**
+!node_modules/
+!dist/
+!build/

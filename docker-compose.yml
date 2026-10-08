@@ -1,0 +1,39 @@
+services:
+  packet-tools:
+    build:
+      context: .
+      dockerfile: dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:7531}
+        NEXT_PUBLIC_COOKIE_NAME: ${NEXT_PUBLIC_COOKIE_NAME:-packet-tools-cookie}
+        NEXT_PUBLIC_PROYECT_NAME: ${NEXT_PUBLIC_PROYECT_NAME:-Packet Tools}
+    image: packet-tools:latest
+    container_name: packet-tools
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      NODE_ENV: production
+      SERVER_PORT: "7531"
+      PORT: "3090"
+      DATABASE_URL: file:/app/data/packet_tools.db
+      NEXT_PUBLIC_API_URL: http://localhost:7531
+      NEXT_PUBLIC_COOKIE_NAME: packet-tools-cookie
+      NEXT_PUBLIC_PROYECT_NAME: Packet Tools
+    ports:
+      - "${SERVER_PORT:-7531}:7531"
+      - "${PORT:-3090}:3090"
+    volumes:
+      - packet-tools-data:/app/data
+    # Descomenta para conectar equipos físicos por puerto serial:
+    # devices:
+    #   - /dev/ttyUSB0:/dev/ttyUSB0
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:7531/api/health').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
+
+volumes:
+  packet-tools-data:

@@ -1,0 +1,80 @@
+{
+  "$schema": "https://v2-10-11.turborepo.dev/schema.json",
+  "globalEnv": [
+    "PORT",
+    "SERVER_PORT",
+    "WEB_PORT",
+    "NODE_ENV",
+    "NEXT_PUBLIC_API_URL",
+    "NEXT_PUBLIC_COOKIE_NAME",
+    "NEXT_PUBLIC_PROYECT_NAME",
+    "NEXT_PUBLIC_BACKEND_URL",
+    "DATABASE_URL",
+    "JWT_SECRET",
+    "JWT_EXPIRATION",
+    "RATE_LIMIT_REFRESH",
+    "RATE_LIMIT_REQUESTS",
+    "AGENT_HISTORY_MESSAGES",
+    "AGENT_CONTEXT_TOKENS",
+    "AGENT_TOOL_OUTPUT_CHARS",
+    "AGENT_CONTENT_CHARS",
+    "AGENT_USER_MESSAGE_CHARS",
+    "AGENT_RECURSION_LIMIT",
+    "AGENT_CONTEXT_EDIT_TOKENS",
+    "AGENT_TOKEN_LOGGING",
+    "AGENT_PROMPT_CACHING",
+    "AGENT_MAX_OUTPUT_TOKENS",
+    "AGENT_PROVIDER_TIMEOUT_MS",
+    "AGENT_PROVIDER_MAX_RETRIES",
+    "AGENT_TURN_TIMEOUT_MS",
+    "AGENT_DUPLICATE_TOOL_GUARD",
+    "ATTACHMENTS_DIR",
+    "ATTACHMENT_MAX_BYTES",
+    "AGENT_SUBAGENT_LOGGING",
+    "FAST_PATH_ENABLED",
+    "AGENT_LAZY_TOOLS",
+    "TERMINAL_SNIPPET_MAX_CHARS",
+    "NAME",
+    "VERSION",
+    "PT_EXTENSION_SECRET",
+    "CORS_ORIGINS",
+    "CHAT_MESSAGES_RATE_LIMIT"
+  ],
+  "globalPassThroughEnv": [
+    "DATABASE_URL",
+    "JWT_SECRET"
+  ],
+  "tasks": {
+    "dev": {
+      "persistent": true,
+      "cache": false
+    },
+    "build": {
+      "dependsOn": [
+        "^build"
+      ],
+      "outputs": [
+        ".next/**",
+        "!.next/cache/**",
+        "!.next/dev/**",
+        "dist/**"
+      ]
+    },
+    "lint": {
+      "dependsOn": [
+        "^build"
+      ]
+    },
+    "check-types": {
+      "dependsOn": [
+        "^check-types"
+      ]
+    },
+    "test": {
+      "dependsOn": [
+        "^build"
+      ],
+      "cache": false
+    }
+  }
+}

@@ -1,0 +1,137 @@
+
+    :root {
+      --bg: #f5f5f4;
+      --surface: #ffffff;
+      --border: #e4e3e1;
+      --text: #1c1b1a;
+      --text-2: #6b6966;
+      --text-3: #9b9895;
+      --green: #22c55e;
+      --yellow: #f59e0b;
+      --red: #ef4444;
+      --code-bg: #f3f2f0;
+      --mono: 'Consolas', 'JetBrains Mono', monospace;
+      --font: 'Segoe UI', system-ui, sans-serif;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; }
+    body {
+      font-family: var(--font);
+      background: var(--bg);
+      color: var(--text);
+      font-size: 13px;
+      line-height: 1.5;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .header {
+      padding: 14px 18px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .header h1 { font-size: 14px; font-weight: 600; flex: 1; }
+    .status-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 500;
+      background: var(--code-bg);
+      color: var(--text-2);
+    }
+    .dot { width: 7px; height: 7px; border-radius: 999px; }
+    .dot.connected  { background: var(--green); }
+    .dot.connecting { background: var(--yellow); animation: pulse 1.2s ease-in-out infinite; }
+    .dot.offline    { background: var(--red); }
+    @keyframes pulse { 0%,100%{opacity:.4} 50%{opacity:1} }
+
+    .body {
+      flex: 1;
+      padding: 16px 18px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 14px 16px;
+    }
+    .card h2 {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-2);
+      text-transform: uppercase;
+      letter-spacing: .04em;
+      margin-bottom: 8px;
+    }
+    .card-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 8px;
+    }
+    .card-head h2 { margin-bottom: 0; }
+    .row { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 4px 0; }
+    .row .k { color: var(--text-2); }
+    .row .v { font-family: var(--mono); color: var(--text); }
+    .v-group { display: inline-flex; align-items: center; gap: 8px; min-width: 0; }
+    .v-group .v { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+    .btn {
+      font-family: var(--font);
+      font-size: 11px;
+      font-weight: 500;
+      line-height: 1.4;
+      padding: 4px 10px;
+      border: 1px solid var(--border);
+      border-radius: 7px;
+      background: var(--surface);
+      color: var(--text-2);
+      cursor: pointer;
+      white-space: nowrap;
+      transition: background .15s ease, color .15s ease, border-color .15s ease;
+    }
+    .btn:hover { background: var(--code-bg); color: var(--text); border-color: var(--text-3); }
+    .btn:active { transform: translateY(1px); }
+    .btn:focus-visible { outline: 2px solid var(--green); outline-offset: 1px; }
+    .btn.btn-ok   { color: #15803d; border-color: #bbf7d0; background: #f0fdf4; }
+    .btn.btn-err  { color: #b91c1c; border-color: #fecaca; background: #fef2f2; }
+
+    .log {
+      flex: 1;
+      min-height: 0;
+      background: var(--code-bg);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 10px 12px;
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--text-2);
+      overflow-y: auto;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+    .log .line { padding: 1px 0; }
+    .log .line.err { color: var(--red); }
+    .log .line.ok  { color: var(--green); }
+    .log .ts { color: var(--text-3); }
+
+    .footer {
+      padding: 8px 18px;
+      background: var(--surface);
+      border-top: 1px solid var(--border);
+      font-size: 11px;
+      color: var(--text-3);
+      display: flex;
+      gap: 14px;
+    }

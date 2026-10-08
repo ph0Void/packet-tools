@@ -1,0 +1,44 @@
+{
+  "name": "Packet Tools",
+  "version": "1.2.1",
+  "description": "Proyecto de automatizacion  para la configuracion de equipos de red",
+  "main": "index.js",
+  "packageManager": "npm@10.8.2",
+  "scripts": {
+    "dev": "dotenv -e .env -- turbo dev",
+    "dev:server": "dotenv -e .env -- turbo dev --filter=@packet-tools/server",
+    "dev:web": "dotenv -e .env -- turbo dev --filter=@packet-tools/web",
+    "init": "cp .example.env .env && npm install",
+    "build": "dotenv -e .env -- turbo build",
+    "build-desktop": "node packages/desktop/scripts/build.mjs",
+    "lint": "turbo lint",
+    "migrate": "dotenv -e .env -- npm run migrate --workspace=@packet-tools/server",
+    "generate": "dotenv -e .env -- npm run generate --workspace=@packet-tools/server",
+    "reset": "dotenv -e .env -- npm run reset --workspace=@packet-tools/server",
+    "seed": "dotenv -e .env -- npm run seed --workspace=@packet-tools/server",
+    "studio": "dotenv -e .env -- npm run studio --workspace=@packet-tools/server",
+    "test": "dotenv -e .env -- npm run test --workspace=@packet-tools/server",
+    "test-pt": "dotenv -e .env -- npm run test-pt --workspace=@packet-tools/server",
+    "test-terminal": "dotenv -e .env -- npm run test-terminal --workspace=@packet-tools/server",
+    "test-telnet": "dotenv -e .env -- npm run test-telnet --workspace=@packet-tools/server",
+    "test-ssh": "dotenv -e .env -- npm run test-ssh --workspace=@packet-tools/server",
+    "test-serial": "dotenv -e .env -- npm run test-serial --workspace=@packet-tools/server",
+    "test-gns3": "dotenv -e .env -- npm run test-gns3 --workspace=@packet-tools/server"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "MIT",
+  "type": "module",
+  "devDependencies": {
+    "dotenv-cli": "^11.0.0",
+    "turbo": "^2.10.11"
+  },
+  "workspaces": [
+    "packages/*"
+  ],
+  "dependencies": {
+    "@langchain/core": "^1.2.12",
+    "deepagents": "^1.14.1",
+    "langchain": "^1.5.12"
+  }
+}

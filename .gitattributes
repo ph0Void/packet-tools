@@ -1,0 +1,8 @@
+# Normaliza los finales de línea en el repositorio
+* text=auto
+
+# Estos archivos deben conservar LF incluso en checkouts de Windows:
+# un CRLF rompería el shebang de los scripts dentro del contenedor Linux.
+*.sh text eol=lf
+docker-entrypoint.sh text eol=lf
+dockerfile text eol=lf

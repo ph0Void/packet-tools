@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>API Cisco Packet Tracer</title>
+    <script src="socket.io.min.js"></script>
+    <link rel="stylesheet" href="index.css" />
+  </head>
+
+  <body>
+    <header class="header">
+      <h1>Packet Tools Api v1.0.8</h1>
+      <span class="status-pill"
+        ><span id="status-dot" class="dot connecting"></span
+        ><span id="status-text">conectando</span></span
+      >
+    </header>
+
+    <main class="body">
+      <section class="card">
+        <h2>Resumen</h2>
+        <div class="row">
+          <span class="k"> Url Client</span>
+          <span class="v-group">
+            <span class="v" id="endpoint"> http://127.0.0.1:7531 </span>
+            <button
+              type="button"
+              id="copy-url"
+              class="btn"
+              title="Copiar la URL del cliente"
+            >
+              Copiar
+            </button>
+          </span>
+        </div>
+        <div class="row">
+          <span class="k">ID de socket</span><span class="v" id="sid">—</span>
+        </div>
+        <div class="row">
+          <span class="k">Herramientas llamadas</span
+          ><span class="v" id="tool-count">0</span>
+        </div>
+      </section>
+
+      <section
+        class="card"
+        style="flex: 1; display: flex; flex-direction: column; min-height: 0"
+      >
+        <div class="card-head">
+          <h2>Logs</h2>
+          <button
+            type="button"
+            id="clear-log"
+            class="btn"
+            title="Eliminar todas las líneas de actividad"
+          >
+            Limpiar logs
+          </button>
+        </div>
+        <div id="log" class="log"></div>
+      </section>
+
+      <section class="card">
+        <h2>Repositorio Github:</h2>
+        <div class="row">
+          <a href="https://github.com/ph0Void/packet-tools"
+            >https://github.com/ph0Void/packet-tools</a
+          >
+        </div>
+      </section>
+    </main>
+    <script src="interface.js"></script>
+  </body>
+</html>

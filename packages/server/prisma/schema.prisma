@@ -1,0 +1,347 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/prisma/generated"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+enum Role {
+  ADMIN
+  STAFF
+  USER
+}
+
+enum AiProvider {
+  OPENAI
+  GOOGLE
+  OPENROUTER
+  ANTHROPIC
+  OLLAMA
+  LMSTUDIO
+  CUSTOM
+}
+
+enum TypeModel {
+  EMBEDDING
+  CHAT
+}
+
+enum TypeMessage {
+  user
+  assistant
+  system
+  tool
+}
+
+enum TypeDevice {
+  PACKET_TRACER
+  GNS3
+  CISCO
+  HUAWEI
+  ARUBA
+  MIKROTIK
+  GENERIC
+}
+
+enum ConnectionProtocol {
+  SSH
+  TELNET
+  SERIAL
+  SIMULATION
+}
+
+enum AttachmentType {
+  IMAGE
+  DOCUMENT
+}
+
+enum TaskStatus {
+  PENDING
+  RUNNING
+  SUCCESS
+  CANCEL
+  FAILED
+}
+
+enum CronJobType {
+  STANDARD
+  INTELLIGENT
+}
+
+enum TypeDataBase {
+  DATA
+  SKILL
+}
+
+//  USUARIO 
+model User {
+  id       String  @id @default(cuid())
+  username String  @unique
+  password String
+  role     Role    @default(USER)
+  token    String? @unique
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  chats            Chat[]
+  topologies       Topology[]
+  alerts           Alert[]
+  clientTopologies ClientTopology[]
+  knowledgeBases   KnowledgeBase[]
+  cronJobs         CronJob[]
+  attachments      Attachment[]
+}
+
+model Configuration {
+  id           String  @id @default(cuid())
+  systemPrompt String?
+
+  agentLogsEnabled Boolean @default(true)
+
+  modelProviders ModelProvider[]
+}
+
+model ModelProvider {
+  id          String     @id @default(cuid())
+  name        String
+  provider    AiProvider @default(CUSTOM)
+  modelName   String
+  typeModel   TypeModel  @default(CHAT)
+  baseUrl     String?
+  apiKey      String?
+  temperature Float      @default(0.7)
+
+  isActive Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  userPermission String @default("STAFF,ADMIN,CLIENT")
+
+  configuration   Configuration? @relation(fields: [configurationId], references: [id])
+  configurationId String?
+}
+
+model Chat {
+  id    String  @id @default(cuid())
+  title String?
+
+  modelProviderId String?
+  connectionId    String?
+
+  gns3ProjectId String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  messages Message[]
+
+  @@index([userId])
+}
+
+model Message {
+  id        String      @id @default(cuid())
+  role      TypeMessage @default(user)
+  content   String
+  createdAt DateTime    @default(now())
+
+  toolCalls Json?
+  reasoning String?
+  segments  Json?
+
+  chatId String
+  chat   Chat   @relation(fields: [chatId], references: [id], onDelete: Cascade)
+
+  attachments Attachment[]
+
+  clientMessageId String?
+
+  @@unique([chatId, clientMessageId])
+  @@index([chatId])
+}
+
+model Attachment {
+  id       String         @id @default(cuid())
+  fileName String
+  fileType AttachmentType @default(IMAGE)
+
+  fileUrl  String?
+  mimeType String?
+
+  storagePath String?
+
+  sha256 String?
+
+  sizeBytes Int?
+  userId    String?
+  user      User?   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  messageId String
+  message   Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@index([messageId])
+  @@index([userId])
+}
+
+model KnowledgeBase {
+  id          String       @id @default(cuid())
+  title       String
+  content     String
+  type        TypeDataBase @default(DATA)
+  description String?
+
+  fileUrl     String?
+  vectorDocId String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  createdById String?
+  createdBy   User?   @relation(fields: [createdById], references: [id], onDelete: SetNull)
+}
+
+model DeviceProviders {
+  id         String     @id @default(cuid())
+  name       String
+  typeDevice TypeDevice @default(PACKET_TRACER)
+
+  protocol       ConnectionProtocol @default(SIMULATION)
+  host           String?            @default("http://localhost:7531")
+  port           Int?
+  serialPort     String?
+  serialBaudrate Int?
+
+  username String?
+  password String?
+
+  status String @default("OFFLINE") // "ONLINE", "OFFLINE", "UNREACHABLE"
+
+  isTemporary Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  topologyId String?
+  topology   Topology? @relation(fields: [topologyId], references: [id], onDelete: SetNull)
+
+  cronJobs CronJob[]
+}
+
+model Topology {
+  id               String  @id @default(cuid())
+  name             String
+  description      String?
+  packetTracerFile String?
+  topologyJson     String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  ownerId String
+  owner   User   @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+
+  alerts           Alert[]
+  logs             Log[]
+  clientTopologies ClientTopology[]
+  deviceProviders  DeviceProviders[]
+  scheduledTasks   CronJob[]
+}
+
+model ClientTopology {
+  id String @id @default(cuid())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  topologyId String
+  topology   Topology @relation(fields: [topologyId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Log {
+  id        String   @id @default(cuid())
+  level     String
+  title     String
+  content   String
+  createdAt DateTime @default(now())
+
+  topologyId String?
+  topology   Topology? @relation(fields: [topologyId], references: [id], onDelete: Cascade)
+
+  userId String?
+
+  chatId String?
+
+  @@index([createdAt])
+  @@index([level])
+  @@index([userId])
+  @@index([chatId])
+}
+
+model Alert {
+  id          String  @id @default(cuid())
+  title       String
+  description String
+  severity    String
+  resolved    Boolean @default(false)
+
+  createdAt DateTime @default(now())
+
+  topologyId String
+  topology   Topology @relation(fields: [topologyId], references: [id], onDelete: Cascade)
+
+  userId String?
+  user   User?   @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model ConfigTemplate {
+  id          String  @id @default(uuid())
+  name        String
+  description String?
+  vendor      String
+  commands    String
+  variables   Json
+
+  createdAt DateTime @default(now())
+}
+
+model CronJob {
+  id   String @id @default(cuid())
+  name String
+
+  description String?
+  prompt      String?
+
+  cronExpression String?
+  actionType     CronJobType @default(STANDARD)
+
+  scheduledAt DateTime?
+
+  payload  String?
+  isActive Boolean    @default(true)
+  lastRun  DateTime?
+  nextRun  DateTime?
+  status   TaskStatus @default(PENDING)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  userId String?
+  user   User?   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  topologyId String?
+  topology   Topology? @relation(fields: [topologyId], references: [id], onDelete: SetNull)
+
+  deviceProviderId String?
+  deviceProvider   DeviceProviders? @relation(fields: [deviceProviderId], references: [id], onDelete: SetNull)
+}
