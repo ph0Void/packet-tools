@@ -10,7 +10,7 @@
   },
   "keywords": [],
   "author": "ph0",
-  "license": "MIT and ISC",
+  "license": "MIT",
   "type": "commonjs",
   "devDependencies": {
     "bytenode": "^1.7.0",

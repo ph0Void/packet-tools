@@ -42,5 +42,5 @@ packages/desktop/.cache/
 
 /examples/*
 
-#other
-.agents/*
+# agents
+..agents/*

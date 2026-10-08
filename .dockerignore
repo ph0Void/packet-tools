@@ -15,14 +15,13 @@ coverage
 .git
 .gitignore
 
-# Variables de entorno (se pasan por env_file/compose)
+# Variables de entorno  
 .env
 .env.*
 !.example.env
 
 # Base de datos SQLite local y archivos subidos
 packages/server/.packet_tool_database.db
-packages/server/.packet_tool_database.db-journal
 packages/server/uploads
 
 # Editor / sistema

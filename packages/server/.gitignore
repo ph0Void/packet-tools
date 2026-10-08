@@ -44,4 +44,4 @@ yarn-error.log*
 # database 
 .packet_tool_database.db
 *.db
-/prisma/migration
+prisma/migration/*
