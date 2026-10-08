@@ -41,3 +41,6 @@ packages/desktop/.staging/
 packages/desktop/.cache/
 
 /examples/*
+
+#other
+.agents/*
