@@ -6,7 +6,7 @@ import path from "node:path";
 
 const SERVER_NAME = "packet-tools";
 const COMMAND = "npx";
-const ARGS = ["-y", "github:ph0Void/packet-tools", "packet-tools-mcp"];
+const ARGS = ["-y", "--package=github:ph0Void/packet-tools", "packet-tools-mcp"];
 
 const home = os.homedir();
 const appData = process.env.APPDATA ?? path.join(home, "AppData", "Roaming");

@@ -31,7 +31,7 @@ if (args.includes("--mcp") || args.includes("mcp")) {
       "  packet-tools --help          Muestra esta ayuda",
       "",
       "La vía recomendada para integrar el MCP es declararlo en tu cliente:",
-      '  npx -y github:ph0Void/packet-tools packet-tools-mcp',
+      '  npx -y --package=github:ph0Void/packet-tools packet-tools-mcp',
       "",
       "Detalle: https://github.com/ph0Void/packet-tools/blob/main/packages/mcp/README.md",
     ].join("\n"),

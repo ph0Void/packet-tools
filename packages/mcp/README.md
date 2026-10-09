@@ -293,12 +293,18 @@ La vía recomendada no requiere clonar ni compilar nada: se ejecuta directo desd
 GitHub con `npx`.
 
 ```bash
-npx -y github:ph0Void/packet-tools packet-tools-mcp
+npx -y --package=github:ph0Void/packet-tools packet-tools-mcp
 ```
 
 `npx` descarga la última versión de la rama principal, instala sus dependencias y
 deja el servidor MCP escuchando en **stdio**. La primera ejecución tarda más
 (descarga + compilación puntual); las siguientes usan la caché de `npx`.
+
+> ⚠️ **El `--package=` es obligatorio.** El paquete raíz se llama
+> `@packet-tools/root`, así que su nombre no coincide con el binario
+> `packet-tools-mcp`. Sin `--package=`, `npx` intenta adivinar el ejecutable y
+> falla con `npm error could not determine executable to run`. Declara **primero
+> el paquete** (con `--package=`) y **después el binario**.
 
 > ⚠️ **Compatibilidad con el plugin de Packet Tracer**
 >
@@ -321,7 +327,7 @@ Durante el desarrollo (sin compilar) puede usarse
   "mcpServers": {
     "packet-tools": {
       "command": "npx",
-      "args": ["-y", "github:ph0Void/packet-tools", "packet-tools-mcp"]
+      "args": ["-y", "--package=github:ph0Void/packet-tools", "packet-tools-mcp"]
     }
   }
 }
@@ -336,7 +342,7 @@ Durante el desarrollo (sin compilar) puede usarse
   "mcp": {
     "packet-tools": {
       "type": "local",
-      "command": ["npx", "-y", "github:ph0Void/packet-tools", "packet-tools-mcp"],
+      "command": ["npx", "-y", "--package=github:ph0Void/packet-tools", "packet-tools-mcp"],
       "enabled": true
     }
   }
@@ -350,7 +356,7 @@ Durante el desarrollo (sin compilar) puede usarse
 ```toml
 [mcp_servers.packet-tools]
 command = "npx"
-args = ["-y", "github:ph0Void/packet-tools", "packet-tools-mcp"]
+args = ["-y", "--package=github:ph0Void/packet-tools", "packet-tools-mcp"]
 ```
 
 ### GitHub Copilot (VS Code)
@@ -363,7 +369,7 @@ args = ["-y", "github:ph0Void/packet-tools", "packet-tools-mcp"]
     "packet-tools": {
       "type": "stdio",
       "command": "npx",
-      "args": ["-y", "github:ph0Void/packet-tools", "packet-tools-mcp"]
+      "args": ["-y", "--package=github:ph0Void/packet-tools", "packet-tools-mcp"]
     }
   }
 }
@@ -378,7 +384,7 @@ Mismo bloque `command` + `args`, en el archivo `mcp.json` del cliente:
   "mcpServers": {
     "packet-tools": {
       "command": "npx",
-      "args": ["-y", "github:ph0Void/packet-tools", "packet-tools-mcp"]
+      "args": ["-y", "--package=github:ph0Void/packet-tools", "packet-tools-mcp"]
     }
   }
 }
@@ -393,7 +399,7 @@ Mismo bloque `command` + `args`, en el archivo `mcp.json` del cliente:
   "mcpServers": {
     "packet-tools": {
       "command": "npx",
-      "args": ["-y", "github:ph0Void/packet-tools", "packet-tools-mcp"]
+      "args": ["-y", "--package=github:ph0Void/packet-tools", "packet-tools-mcp"]
     }
   }
 }
@@ -405,7 +411,7 @@ Algunos agentes (DeepSeek y clientes minimalistas) piden el lanzador como una
 única línea. Equivale a lo anterior:
 
 ```bash
-npx -y github:ph0Void/packet-tools packet-tools-mcp
+npx -y --package=github:ph0Void/packet-tools packet-tools-mcp
 ```
 
 ### Variables de entorno opcionales
