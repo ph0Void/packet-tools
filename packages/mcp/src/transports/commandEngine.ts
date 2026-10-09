@@ -1,42 +1,22 @@
-/**
- * Motor de comandos común a todos los transportes.
- *
- * QUÉ PROBLEMA RESUELVE
- * El servidor tenía tres clientes de terminal y cada uno resolvía por su cuenta
- * lo mismo: sanear los comandos para no cerrar la consola por accidente, esperar
- * a que la salida se estabilice y recortar el resultado. Aquí eso vive una sola
- * vez y los adaptadores solo aportan "hablar el protocolo".
- *
- * DETECCIÓN DE FABRICANTE (requisito central)
- * Se reimplementa el criterio de `packages/server/src/agent/security/VendorProfile.ts`
- * porque es dato puro y probado (Cisco IOS, Huawei VRP, MikroTik RouterOS,
- * ArubaOS, JunOS y un perfil conservador). Se consulta en este orden:
- *   1. El tipo declarado del equipo (`typeDevice` de la BD propia del MCP).
- *   2. El prompt leído de la consola, con reglas ordenadas de más a menos
- *      específica.
- *   3. Perfil conservador.
- * El perfil decide QUÉ comandos de transición se pueden enviar: si no se conoce
- * el comando, no se inventa (es preferible no tocar la consola que teclearle a
- * un equipo un comando que no existe).
- */
+
 import type { DeviceTransport, OpcionesEjecucion, ResultadoComando } from "./DeviceTransport";
 import { envConfig } from "@/config/EnvConfig";
 import { Logger } from "@/utils/Logger";
 
-// ---------------------------------------------------------------------------
-// Perfiles de fabricante (datos puros)
-// ---------------------------------------------------------------------------
 
-/** Identificadores de fabricante soportados. */
+
+
+
+
 export type VendorId = "cisco" | "huawei" | "mikrotik" | "aruba" | "junos" | "conservative";
 
-/** Perfil de un fabricante: cómo se ve su prompt y cómo se transiciona. */
+
 interface PerfilVendor {
   id: VendorId;
   label: string;
-  /** Prompt que indica sub-modo de configuración anidado. */
+  
   esSubModo: (linea: string) => boolean;
-  /** ¿La línea es un prompt de este fabricante? */
+  
   esPrompt: (linea: string) => boolean;
   transiciones: {
     aUsuario: string | null;
@@ -51,10 +31,10 @@ interface PerfilVendor {
   paginador: RegExp[];
 }
 
-/** Longitud máxima que se considera un prompt (no una línea de salida). */
+
 const PROMPT_MAX_CHARS = 120;
 
-/** Limpia una línea para compararla como prompt: sin ANSI, sin CR. */
+
 function limpiar(linea?: string | null): string {
   return String(linea ?? "")
     .replace(/\x1b\[[0-9;?]*[A-Za-z]/g, "")
@@ -62,13 +42,13 @@ function limpiar(linea?: string | null): string {
     .trim();
 }
 
-/** ¿La línea tiene forma de prompt corto? */
+
 function parecePrompt(linea: string): boolean {
   const texto = limpiar(linea);
   return texto.length > 0 && texto.length <= PROMPT_MAX_CHARS;
 }
 
-// --- Cisco IOS -------------------------------------------------------------
+
 const CISCO: PerfilVendor = {
   id: "cisco",
   label: "Cisco IOS",
@@ -82,19 +62,19 @@ const CISCO: PerfilVendor = {
     aPrivilegiado: "enable",
     aConfig: "configure terminal",
     guardarConfig: "write memory",
-    // `disable` NO sirve dentro de `(config)#`; la salida es `exit`.
+    
     salirDeConfig: "exit",
   },
   preambulo: { sinPaginacion: "terminal length 0" },
   paginador: [/--More--/, /\(END\)/],
 };
 
-// --- Huawei VRP ------------------------------------------------------------
+
 const HUAWEI_VISTA = /^\[[^\]]*\]\s*$/;
 const HUAWEI: PerfilVendor = {
   id: "huawei",
   label: "Huawei VRP",
-  // En VRP un sub-modo separa la vista del dispositivo con `-` o `/`.
+  
   esSubModo: (linea) => /^\[[^\]]*[-/][^\]]*\]\s*$/.test(limpiar(linea)),
   esPrompt: (linea) => {
     const texto = limpiar(linea);
@@ -103,7 +83,7 @@ const HUAWEI: PerfilVendor = {
   },
   transiciones: {
     aUsuario: "quit",
-    // En VRP no hay prompt de privilegio separado.
+    
     aPrivilegiado: null,
     aConfig: "system-view",
     guardarConfig: "save",
@@ -113,14 +93,10 @@ const HUAWEI: PerfilVendor = {
   paginador: [/----\s*More\s*----/, /\(END\)/],
 };
 
-// --- MikroTik RouterOS -----------------------------------------------------
+
 const MIKROTIK_RAIZ = /^\[[^\]]*@[^\]]*\]\s*[>\/]?\s*$/;
 const MIKROTIK_MENU = /^\[[^\]]*@[^\]]*\]\s*\/\S+/;
-/**
- * Ruta de menú: identidad + `/ruta` + `>` final.
- * RouterOS no tiene modo de configuración global (todo se edita dentro de un
- * menú), así que lo único que dice "estoy dentro" es la barra en el prompt.
- */
+
 const MIKROTIK_RUTA_MENU = /^\[[^\]]*@[^\]]*\]\s*\/\S[^>]*>\s*$/;
 const MIKROTIK: PerfilVendor = {
   id: "mikrotik",
@@ -133,18 +109,18 @@ const MIKROTIK: PerfilVendor = {
   transiciones: {
     aUsuario: "/exit",
     aPrivilegiado: null,
-    // null y se queda en null: no hay palabra que "entre" en configuración.
-    // Inventar un `configure` sería escribir una ruta que no existe.
+    
+    
     aConfig: null,
     guardarConfig: null,
-    // La ayuda del propio equipo dice que para subir un nivel es `..`.
+    
     salirDeConfig: "..",
   },
   preambulo: { sinPaginacion: null },
   paginador: [/\[Q\s*\|\s*quit\]/, /\(END\)/],
 };
 
-// --- ArubaOS ---------------------------------------------------------------
+
 const ARUBA_PROMPT = /^\([^()]*\)(\s+\([^()]*\))*\s*[#>]\s*$/;
 const ARUBA: PerfilVendor = {
   id: "aruba",
@@ -163,20 +139,16 @@ const ARUBA: PerfilVendor = {
     aUsuario: "exit",
     aPrivilegiado: "enable",
     aConfig: "configure terminal",
-    guardarConfig: null, // no confirmado
+    guardarConfig: null, 
     salirDeConfig: "exit",
   },
   preambulo: { sinPaginacion: null },
   paginador: [/--More--/, /\(END\)/],
 };
 
-// --- JunOS -----------------------------------------------------------------
+
 const JUNOS_PROMPT = /^\S+@\S+[>#]\s*$/;
-/**
- * Prompt de Junos para DECIDIR fabricante: más estricto que el operativo.
- * Un shell de Linux también es `algo@algo#` (`root@vyos:~#`); lo que distingue a
- * Junos es que el marcador va pegado al NOMBRE del equipo, sin `:` ni `/`.
- */
+
 const JUNOS_HOST_PROMPT = /^\S+@\S*[A-Za-z0-9][>#]\s*$/;
 const JUNOS_SUBMODO = /^\s*\[(?:edit|configure|top)[^\]]*\]\s*$/;
 const JUNOS: PerfilVendor = {
@@ -198,7 +170,7 @@ const JUNOS: PerfilVendor = {
   paginador: [/--More--/, /-{2,}\s*\(\s*more\s*\)\s*-{2,}/, /\(END\)/],
 };
 
-// --- Conservador -----------------------------------------------------------
+
 const GENERICO_PROMPT = /[#>]\s*$/;
 const GENERICO_PROMPT_ANIDADO = /\([^()]*\)\s*[#>]\s*$|^\s*\[[^\]]+\]\s*$/;
 const CONSERVADOR: PerfilVendor = {
@@ -220,8 +192,8 @@ const CONSERVADOR: PerfilVendor = {
     return /[$%>]$/.test(ultimo);
   },
   transiciones: {
-    // Sin fabricante conocido NO se transiciona: mejor no tocar la consola que
-    // enviar un comando que no existe en ese sistema.
+    
+    
     aUsuario: null,
     aPrivilegiado: null,
     aConfig: null,
@@ -232,7 +204,7 @@ const CONSERVADOR: PerfilVendor = {
   paginador: [/--More--/, /----\s*More\s*----/, /\(END\)/],
 };
 
-/** Todos los perfiles por id. */
+
 export const PERFILES_VENDOR: Record<VendorId, PerfilVendor> = {
   cisco: CISCO,
   huawei: HUAWEI,
@@ -242,11 +214,7 @@ export const PERFILES_VENDOR: Record<VendorId, PerfilVendor> = {
   conservative: CONSERVADOR,
 };
 
-/**
- * Deduce el fabricante SOLO a partir del prompt.
- * Reglas ordenadas de más a menos específica; devuelve null si el prompt no es
- * concluyente (es preferible el perfil conservador a un fabricante equivocado).
- */
+
 export function detectarVendorPorPrompt(prompt?: string | null): VendorId | null {
   const texto = limpiar(prompt);
   if (!parecePrompt(texto)) return null;
@@ -257,14 +225,11 @@ export function detectarVendorPorPrompt(prompt?: string | null): VendorId | null
   if (ARUBA_PROMPT.test(texto)) return "aruba";
   if (/\(config[^)]*\)#\s*$/.test(texto)) return "cisco";
 
-  // `R1#`, `switch#`, `vyos@vyos:~$` no identifican a nadie por sí solos.
+  
   return null;
 }
 
-/**
- * Resuelve el perfil en tres niveles: declarado → detectado → conservador.
- * Es la misma semántica que el servidor, para que el comportamiento coincida.
- */
+
 export function resolverVendor(input: {
   typeDevice?: string | null;
   prompt?: string | null;
@@ -284,21 +249,14 @@ export function resolverVendor(input: {
   return detectado ? PERFILES_VENDOR[detectado] : CONSERVADOR;
 }
 
-// ---------------------------------------------------------------------------
-// Saneado de comandos
-// ---------------------------------------------------------------------------
 
-/**
- * Comandos que NUNCA se envían a una consola.
- *
- * POR QUÉ: cerrar la sesión (o salir al login) dejaría al usuario fuera de un
- * equipo al que quizá no puede volver a entrar, y es justo lo que hace un modelo
- * cuando "termina" una tarea. El servidor bloquea estos comandos por lotes
- * completos; aquí se descartan individualmente y se informa.
- */
+
+
+
+
 const COMANDOS_DE_CIERRE = /^(exit|quit|logout|disconnect|close)$/i;
 
-/** Extrae el prompt de la última línea con forma de prompt. */
+
 export function detectarPrompt(salida: string, esPrompt: (l: string) => boolean): string | null {
   const lineas = String(salida ?? "").split(/\r?\n/);
   for (let i = lineas.length - 1; i >= 0; i--) {
@@ -309,43 +267,31 @@ export function detectarPrompt(salida: string, esPrompt: (l: string) => boolean)
   return null;
 }
 
-/** Limpia la salida de consola: secuencias ANSI, retrocesos y CR sueltos. */
+
 export function sanearSalida(texto: string): string {
   return String(texto ?? "")
-    // Secuencias de escape ANSI (color, borrado de línea, movimiento de cursor).
+    
     .replace(/\x1b\[[0-9;?]*[A-Za-z]/g, "")
-    .replace(/\x1b\][^\x07]*\x07/g, "") // OSC
-    // `\b` de los borrados del eco de teclado.
+    .replace(/\x1b\][^\x07]*\x07/g, "") 
+    
     .replace(/[^\n]\x08/g, "")
     .replace(/\r(?!\n)/g, "\n")
     .replace(/\n{3,}/g, "\n\n")
     .trim();
 }
 
-/** Recorta la salida al máximo configurado, avisando de que se recortó. */
+
 export function recortarSalida(texto: string): string {
   const maximo = envConfig.MCP_MAX_OUTPUT_CHARS;
   if (texto.length <= maximo) return texto;
   return `${texto.slice(0, maximo)}\n\n[...salida recortada: ${texto.length - maximo} caracteres omitidos. Usa un comando más específico para ver el resto.]`;
 }
 
-// ---------------------------------------------------------------------------
-// Ciclo de ejecución
-// ---------------------------------------------------------------------------
 
-/**
- * Ejecuta uno o varios comandos en un transporte, con detección de fabricante.
- *
- * El orden es deliberado:
- *  1. Conectar (idempotente).
- *  2. Leer el estado inicial y resolver el fabricante (declarado o por prompt).
- *  3. Enviar el preámbulo del perfil (desactivar paginación), si lo declara.
- *  4. Enviar cada comando y leer su salida.
- *
- * El preámbulo importa: sin `terminal length 0`, un `show run` en Cisco se queda
- * esperando en `--More--` y la lectura expira; el agente lo interpretaría como
- * un equipo colgado.
- */
+
+
+
+
 export async function ejecutarComandos(
   transporte: DeviceTransport,
   comandos: string[],
@@ -358,7 +304,7 @@ export async function ejecutarComandos(
 
   await transporte.connect();
 
-  // --- 1) Resolver fabricante -------------------------------------------------
+  
   const salidaInicial = await transporte.readOutput({ idleMs: 300, maxMs: 3000 });
   let perfil = opciones.vendorIdForzado
     ? PERFILES_VENDOR[opciones.vendorIdForzado as VendorId] ?? CONSERVADOR
@@ -367,9 +313,9 @@ export async function ejecutarComandos(
   const promptInicial = detectarPrompt(salidaInicial, perfil.esPrompt);
   let vendorDetectadoEnEstaLlamada = !opciones.vendorIdForzado && Boolean(promptInicial);
 
-  // Si el prompt no identificó al fabricante y no venía declarado, se reintenta
-  // con una lectura más paciente: muchas consolas tardan en mostrar el prompt
-  // (sobre todo tras un arranque en frío).
+  
+  
+  
   if (!opciones.vendorIdForzado && perfil.id === "conservative" && !promptInicial) {
     const segundaLectura = await transporte.readOutput({ idleMs: 500, maxMs: 4000 });
     const promptTardio = detectarPrompt(segundaLectura, (l) => /[#>\]$]/.test(l));
@@ -383,22 +329,22 @@ export async function ejecutarComandos(
     `Transporte ${transporte.protocol}: fabricante resuelto como '${perfil.id}' (${perfil.label}).`,
   );
 
-  // --- 2) Preámbulo del perfil ------------------------------------------------
+  
   const salidas: string[] = [];
   if (!opciones.sinPreambulo && perfil.preambulo.sinPaginacion) {
     try {
       await transporte.sendCommand(perfil.preambulo.sinPaginacion);
       await transporte.readOutput({ idleMs, maxMs: 5000 });
     } catch (error) {
-      // El preámbulo es una mejora, no un requisito: si falla se sigue, pero se
-      // deja constancia para que el modelo no interprete mal una salida paginada.
+      
+      
       Logger.debug(
         `El preámbulo '${perfil.preambulo.sinPaginacion}' falló: ${String(error)}`,
       );
     }
   }
 
-  // --- 3) Comandos ------------------------------------------------------------
+  
   const descartados: string[] = [];
   for (const crudo of comandos) {
     for (const linea of String(crudo).split(/\r?\n/)) {
@@ -406,7 +352,7 @@ export async function ejecutarComandos(
       if (!comando) continue;
 
       if (COMANDOS_DE_CIERRE.test(comando)) {
-        // Nunca se cierra la consola del usuario (ver COMANDOS_DE_CIERRE).
+        
         descartados.push(comando);
         continue;
       }
@@ -446,10 +392,7 @@ export async function ejecutarComandos(
   };
 }
 
-/**
- * Mensaje de ayuda para el usuario cuando el fabricante salió conservador.
- * Es información, no un error: el equipo funciona, solo no se sabe qué es.
- */
+
 export function notaVendorConservador(resultado: ResultadoComando): string {
   if (resultado.vendorId !== "conservative") return "";
   return (

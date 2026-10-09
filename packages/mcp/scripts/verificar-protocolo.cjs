@@ -1,25 +1,10 @@
-/**
- * Prueba del protocolo MCP real sobre stdio.
- *
- * A diferencia de `smoke.ts` (que llama a los handlers en proceso), esto lanza
- * `node dist/app.js` como lo haría un cliente MCP de verdad y habla JSON-RPC por
- * stdin/stdout. Es la única forma de comprobar tres cosas que en proceso no se
- * ven:
- *
- *  1. Que el handshake `initialize` responde con las capacidades correctas.
- *  2. Que `tools/list` devuelve las 95 herramientas con su JSON Schema.
- *  3. Que **stdout solo contiene JSON**: cualquier banner, log o `console.log`
- *     suelto rompería la sesión en un cliente real. Esta prueba falla si aparece
- *     una sola línea que no sea JSON válido.
- *
- * Se ejecuta con `node scripts/verificar-protocolo.cjs` tras `npm run build`.
- */
+
 const { spawn } = require("node:child_process");
 const path = require("node:path");
 
 const entrypoint = path.join(__dirname, "..", "dist", "app.js");
 
-/** Peticiones que se envían, en orden. */
+
 const peticiones = [
   {
     jsonrpc: "2.0",
@@ -34,15 +19,15 @@ const peticiones = [
   { jsonrpc: "2.0", method: "notifications/initialized" },
   { jsonrpc: "2.0", id: 2, method: "tools/list" },
   { jsonrpc: "2.0", id: 3, method: "resources/list" },
-  // Una llamada real a una tool que no necesita nada externo: debe responder
-  // con contenido de texto y sin error.
+  
+  
   {
     jsonrpc: "2.0",
     id: 4,
     method: "tools/call",
     params: { name: "skills_directory", arguments: {} },
   },
-  // Una tool inexistente debe dar error de protocolo, no tumbar el servidor.
+  
   {
     jsonrpc: "2.0",
     id: 5,
@@ -64,7 +49,7 @@ for (const peticion of peticiones) {
   hijo.stdin.write(`${JSON.stringify(peticion)}\n`);
 }
 
-/** Espera a que lleguen las respuestas y cierra el proceso. */
+
 setTimeout(() => {
   hijo.stdin.end();
 }, 1500);
@@ -78,7 +63,7 @@ hijo.on("close", () => {
 
   console.log("\n=== Protocolo MCP sobre stdio (proceso real) ===\n");
 
-  // --- 1) stdout debe ser SOLO JSON -----------------------------------------
+  
   const lineas = stdout.split("\n").filter((l) => l.trim().length > 0);
   const noJson = lineas.filter((l) => {
     try {
@@ -106,7 +91,7 @@ hijo.on("close", () => {
 
   const porId = new Map(respuestas.filter((r) => r.id !== undefined).map((r) => [r.id, r]));
 
-  // --- 2) initialize ---------------------------------------------------------
+  
   const init = porId.get(1);
   comprobar("initialize responde", Boolean(init));
   comprobar(
@@ -128,14 +113,14 @@ hijo.on("close", () => {
     typeof init?.result?.instructions === "string" && init.result.instructions.length > 50,
   );
 
-  // --- 3) tools/list ---------------------------------------------------------
+  
   const lista = porId.get(2);
   const tools = lista?.result?.tools ?? [];
   comprobar("tools/list devuelve herramientas", tools.length > 0, `${tools.length}`);
   comprobar("se exponen las 95 herramientas", tools.length === 95, `${tools.length}`);
 
-  // Cada tool debe traer un JSON Schema con tipo objeto: sin él, el cliente no
-  // puede validar ni ofrecer los parámetros al modelo.
+  
+  
   const sinEsquema = tools.filter(
     (t) => !t.inputSchema || t.inputSchema.type !== "object",
   );
@@ -152,11 +137,11 @@ hijo.on("close", () => {
     sinDescripcion.map((t) => t.name).join(", "),
   );
 
-  // Los prefijos deben estar repartidos entre los 7 dominios.
-  //
-  // OJO: los prefijos de dominio tienen longitudes distintas (`packet_tracer_`
-  // usa dos palabras, `gns3_`/`serial_`/`plan_` una), así que NO se puede cortar
-  // el nombre por el segundo `_`. Se comprueba contra la lista real.
+  
+  
+  
+  
+  
   const PREFIJOS = [
     "packet_tracer_",
     "gns3_",
@@ -187,11 +172,11 @@ hijo.on("close", () => {
   );
   comprobar("se cubren los 7 dominios", dominios.size === 7, `${dominios.size}`);
 
-  // --- 4) resources/list -----------------------------------------------------
+  
   const recursos = porId.get(3);
   comprobar("resources/list responde sin error", recursos && !recursos.error, JSON.stringify(recursos?.error));
 
-  // --- 5) tools/call real ----------------------------------------------------
+  
   const llamada = porId.get(4);
   comprobar("tools/call ejecuta skills_directory", Boolean(llamada?.result));
   comprobar(
@@ -206,11 +191,11 @@ hijo.on("close", () => {
     llamada?.result?.content?.[0]?.text?.slice(0, 160),
   );
 
-  // --- 6) tool inexistente ---------------------------------------------------
-  // El SDK responde a una tool desconocida con `isError: true` y el código
-  // JSON-RPC -32602 (Invalid params) DENTRO del resultado, en vez de como error
-  // de protocolo de nivel superior. Lo que importa comprobar es que la sesión
-  // sigue viva y que el mensaje identifica el problema.
+  
+  
+  
+  
+  
   const inexistente = porId.get(5);
   const textoInexistente = inexistente?.result?.content?.[0]?.text ?? "";
   comprobar(
@@ -223,13 +208,13 @@ hijo.on("close", () => {
     textoInexistente.includes("no_existe_esta_tool"),
     textoInexistente.slice(0, 140),
   );
-  // La prueba de fuego: el servidor debe seguir contestando después del error.
+  
   comprobar(
     "el servidor sigue vivo tras una llamada inválida (initialize llegó antes)",
     Boolean(porId.get(1)?.result),
   );
 
-  // --- 7) stderr -------------------------------------------------------------
+  
   console.log(`\n  stderr: ${stderr.trim().split("\n").filter(Boolean).length} línea(s) de log`);
   comprobar(
     "los logs NO se mezclan con stdout",

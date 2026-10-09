@@ -84,7 +84,13 @@
     }
     .card-head h2 { margin-bottom: 0; }
     .row { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 4px 0; }
-    .row .k { color: var(--text-2); }
+    .row .k { color: var(--text-2); display: inline-flex; align-items: center; gap: 6px; }
+    /* Estado por puente: ✓ verde conectado, ✗ rojo sin conectar, • ámbar conectando. */
+    .conn { display: inline-block; width: 12px; text-align: center; font-weight: 700; font-size: 12px; line-height: 1; }
+    .conn.idle       { color: var(--text-3); }
+    .conn.connected  { color: var(--green); }
+    .conn.connecting { color: var(--yellow); }
+    .conn.offline    { color: var(--red); }
     .row .v { font-family: var(--mono); color: var(--text); }
     .v-group { display: inline-flex; align-items: center; gap: 8px; min-width: 0; }
     .v-group .v { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

@@ -1,12 +1,4 @@
-/**
- * Dominio de skills: leer, crear y editar las instrucciones propias del usuario.
- *
- * Estas tools son la vía de respaldo (y la principal en clientes que no soportan
- * `resources`): con ellas el modelo puede listar las skills, leer una concreta y
- * crear o modificar las suyas. Es también lo que hace que "guarda mi skill para
- * que el MCP la use a futuro" funcione: se persiste en la BD propia del MCP y
- * sobrevive a reinicios.
- */
+
 import fs from "node:fs/promises";
 import path from "node:path";
 import { z } from "zod";
@@ -187,8 +179,8 @@ const herramientas: DefinicionToolGenerica[] = [
       const borrados: string[] = [];
 
       if (skill.source === "file" && skill.filePath) {
-        // Solo se borra el archivo si de verdad está dentro de la carpeta de
-        // skills: nunca se borra una ruta que venga de fuera.
+        
+        
         const raiz = path.resolve(envConfig.MCP_SKILLS_DIR);
         const resuelta = path.resolve(skill.filePath);
         if (resuelta.startsWith(raiz + path.sep)) {

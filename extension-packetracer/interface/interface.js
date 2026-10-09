@@ -1,33 +1,9 @@
 (function () {
-  // ---------------------------------------------------------------------
-  // DOS puentes simultaneos e independientes: el backend de Packet Tools
-  // (7531) y el puente del servidor MCP (7532).
-  //
-  // Son DOS servidores Socket.IO distintos, no dos alias del mismo. Antes la
-  // interfaz solo mantenia UN socket: para usar el otro habia que editar la URL
-  // a mano, asi que el resto del tiempo la extension estaba pegada al primero y
-  // el segundo se quedaba sin servicio. Ahora los dos se conectan de salida y
-  // ambos siguen siendo editables desde la UI.
-  //
-  // Por eso TODO el estado vive DENTRO del objeto de puente: socket, estado,
-  // `sid`, cola de resultados pendientes y listeners. Un fallo en uno no puede
-  // tumbar ni silenciar al otro, y cada linea del log lleva la etiqueta del
-  // puente al que pertenece (asi se distingue "este servidor esta caido" de
-  // "el agente no llamo a la herramienta").
-  //
-  // Las URLs se guardan en localStorage para no recompilar el .pts. OJO: la
-  // interfaz se carga con el esquema `this-sm:` de Packet Tracer y ese origen
-  // puede ser opaco, en cuyo caso TODO acceso a localStorage lanza
-  // SecurityError. Por eso cada lectura/escritura va envuelta en try/catch y, si
-  // falla, se sigue con `puente.url`: el storage jamas debe romper la conexion.
-  // ---------------------------------------------------------------------
   var STORAGE_KEY = {
     backend: "packetToolsBackendUrl",
     mcp: "packetToolsMcpUrl",
   };
-  // Clave de la version de un solo puente. Aquel unico destino era el MCP
-  // (7532 era su default), asi que su valor se hereda al puente MCP como
-  // fallback y NO se borra (puede seguir sirviendo a una interfaz vieja).
+
   var STORAGE_KEY_LEGADO = "packetToolsBridgeUrl";
   var DEFAULT_URL = {
     backend: "http://127.0.0.1:7531",
@@ -37,7 +13,7 @@
   var puentes = [
     {
       clave: "backend",
-      etiqueta: "Backend local",
+      etiqueta: "API",
       url: DEFAULT_URL.backend,
       estado: "idle",
       haConectado: false,
@@ -47,7 +23,7 @@
     },
     {
       clave: "mcp",
-      etiqueta: "MCP bridge",
+      etiqueta: "MCP",
       url: DEFAULT_URL.mcp,
       estado: "idle",
       haConectado: false,
@@ -66,16 +42,20 @@
   var $connectUrl = document.getElementById("connect-url");
   var $clearLog = document.getElementById("clear-log");
 
-  // Contador GLOBAL: es la suma de los dos puentes. Un `tool_call` puede venir
-  // del backend o del MCP indistintamente y la cifra interesa del conjunto.
   var toolsHandled = 0;
 
-  // Cada puente se enlaza con sus propios nodos; se resuelven en un bucle para
-  // no dejar ids escritos a mano en dos sitios.
   for (var i = 0; i < puentes.length; i++) {
     puentes[i].$input = document.getElementById("endpoint-" + puentes[i].clave);
     puentes[i].$copy = document.getElementById("copy-" + puentes[i].clave);
     puentes[i].$sid = document.getElementById("sid-" + puentes[i].clave);
+    puentes[i].$conn = document.getElementById("conn-" + puentes[i].clave);
+  }
+
+  function iconoEstado(estado) {
+    if (estado === "connected") return { texto: "✓", clase: "connected" };
+    if (estado === "connecting") return { texto: "•", clase: "connecting" };
+    if (estado === "offline") return { texto: "✗", clase: "offline" };
+    return { texto: "•", clase: "idle" };
   }
 
   function flashButton(btn, label, cls) {
@@ -110,14 +90,6 @@
     return ok;
   }
 
-  // ---------------------------------------------------------------------
-  // Estado agregado: el pill resume los dos puentes, no uno.
-  //
-  // El texto dice cuantos hay vivos (conectado (1/2)) y el punto de color dice
-  // si el conjunto esta estable: verde solo cuando los dos lo estan. Con uno
-  // solo, el otro sigue reintentando en segundo plano, asi que el punto se
-  // queda en "conectando" (pulsando) aunque haya servicio.
-  // ---------------------------------------------------------------------
   function actualizarEstado() {
     var conectados = 0;
     var conectando = 0;
@@ -132,6 +104,11 @@
         if (p.haConectado) reconectando = true;
       }
       if (p.$sid) p.$sid.textContent = p.estado === "connected" ? p.sid : "—";
+      if (p.$conn) {
+        var icono = iconoEstado(p.estado);
+        p.$conn.textContent = icono.texto;
+        p.$conn.className = "conn " + icono.clase;
+      }
     }
 
     var clase = "connecting";
@@ -152,13 +129,6 @@
     if ($statusText) $statusText.textContent = texto;
   }
 
-  // ---------------------------------------------------------------------
-  // Log con etiqueta de puente: `[etiqueta · url] mensaje`.
-  //
-  // La etiqueta se rellena con espacios hasta el ancho de la mas larga para que
-  // las columnas cuadren (el contenedor va en `white-space: pre`). Asi de un
-  // vistazo se ve que linea es de quien, y no hay que leerla entera.
-  // ---------------------------------------------------------------------
   function etiquetaLarga(puente) {
     if (!puente) return "[interfaz · local]";
     return "[" + puente.etiqueta + " · " + puente.url + "]";
@@ -207,10 +177,6 @@
     if ($toolCount) $toolCount.textContent = String(toolsHandled);
   }
 
-  // ---------------------------------------------------------------------
-  // Persistencia de las URLs (una clave por puente).
-  // ---------------------------------------------------------------------
-  /** Lo que hay escrito en el input del puente, trimmeado; si vacio, su default. */
   function urlDelInput(puente) {
     var escrito =
       puente.$input && puente.$input.value
@@ -273,7 +239,11 @@
     };
     var fail = function () {
       var ok = fallbackCopy(text);
-      flashButton(puente.$copy, ok ? "Copiado ✓" : "Error", ok ? "btn-ok" : "btn-err");
+      flashButton(
+        puente.$copy,
+        ok ? "Copiado ✓" : "Error",
+        ok ? "btn-ok" : "btn-err",
+      );
     };
 
     if (navigator.clipboard && navigator.clipboard.writeText) {
@@ -334,7 +304,11 @@
     };
 
     if (!socket.connected) {
-      puente.pendientes.push({ t: Date.now(), envelope: envelope, socket: socket });
+      puente.pendientes.push({
+        t: Date.now(),
+        envelope: envelope,
+        socket: socket,
+      });
       while (puente.pendientes.length > RESULTADOS_PENDIENTES_MAX) {
         puente.pendientes.shift();
       }
@@ -350,7 +324,11 @@
       // El resultado tardo mas que el corte: si el puente ya volvio con OTRO
       // socket, este no se entregara nunca solo (su `connect` ya paso), asi que
       // se vacia la cola ahora. Sigue siendo el mismo puente, no el otro.
-      if (puente.socket && puente.socket !== socket && puente.socket.connected) {
+      if (
+        puente.socket &&
+        puente.socket !== socket &&
+        puente.socket.connected
+      ) {
         vaciarResultadosPendientes(puente, puente.socket);
       }
       return;
@@ -437,7 +415,8 @@
       return serializeJsString(value);
     }
     if (value === null || value === undefined) return "undefined";
-    if (typeof value === "boolean" || typeof value === "number") return String(value);
+    if (typeof value === "boolean" || typeof value === "number")
+      return String(value);
     if (typeof value === "object") {
       try {
         var text = JSON.stringify(value);
@@ -593,7 +572,11 @@
       return;
     }
 
-    logLine("→ " + tool + " " + JSON.stringify(args).slice(0, 80), null, puente);
+    logLine(
+      "→ " + tool + " " + JSON.stringify(args).slice(0, 80),
+      null,
+      puente,
+    );
 
     var positional = buildPositionalArgs(tool, args);
     if (!positional) {
@@ -650,20 +633,16 @@
       actualizarEstado();
     });
 
-    socket.on("connect_error", function (err) {
-      puente.estado = "offline";
-      logLine(
-        "error de conexión: " + ((err && err.message) || err),
-        "err",
-        puente,
-      );
+    // Escucha silenciosa: si nadie responde en el otro extremo se reintenta sin
+    // llenar el log. Solo se escribe cuando la conexión se establece de verdad.
+    socket.on("connect_error", function () {
+      puente.estado = puente.haConectado ? "connecting" : "offline";
       actualizarEstado();
     });
 
-    socket.on("disconnect", function (reason) {
+    socket.on("disconnect", function () {
       puente.estado = "connecting";
       puente.sid = "—";
-      logLine("desconexión: " + reason, "err", puente);
       actualizarEstado();
     });
 
@@ -720,7 +699,6 @@
     if (puente.$input) puente.$input.value = destino;
 
     puente.estado = "connecting";
-    logLine("iniciando conexión a " + destino, null, puente);
 
     puente.socket = createSocket(destino);
     bindSocketEvents(puente, puente.socket);
@@ -752,10 +730,14 @@
   if ($connectUrl) $connectUrl.addEventListener("click", reconectarAhora);
   for (var k = 0; k < puentes.length; k++) {
     (function (p) {
-      if (p.$copy) p.$copy.addEventListener("click", function () { copyUrl(p); });
+      if (p.$copy)
+        p.$copy.addEventListener("click", function () {
+          copyUrl(p);
+        });
       if (p.$input) {
         p.$input.addEventListener("keydown", function (ev) {
-          if (ev && (ev.key === "Enter" || ev.keyCode === 13)) reconectarAhora();
+          if (ev && (ev.key === "Enter" || ev.keyCode === 13))
+            reconectarAhora();
         });
       }
     })(puentes[k]);

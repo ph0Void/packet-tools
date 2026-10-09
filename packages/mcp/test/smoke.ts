@@ -1,17 +1,4 @@
-/**
- * Prueba de humo del servidor MCP.
- *
- * QUÉ COMPRUEBA (sin necesitar Packet Tracer, GNS3 ni un equipo real):
- *  1. Que los 7 dominios se registran y sus tools pasan las validaciones del
- *     registro (prefijo correcto y sin nombres duplicados).
- *  2. Que el servidor MCP se construye y expone las tools por el protocolo.
- *  3. Que la enumeración de puertos serie funciona de verdad (esta sí toca el
- *     sistema: `SerialPort.list()`).
- *  4. Que el ciclo de `plan_task` → `plan_execute` → `plan_mark_step` escribe el
- *     markdown y marca las casillas como se espera.
- *
- * Se ejecuta con `npm test` dentro de `packages/mcp`.
- */
+
 import fs from "node:fs/promises";
 import path from "node:path";
 import { toolRegistry } from "../src/core/ToolRegistry";
@@ -24,10 +11,10 @@ import {
 } from "../src/transports/commandEngine";
 import { envConfig } from "../src/config/EnvConfig";
 
-/** Contador de fallos, para salir con código distinto de cero. */
+
 let fallos = 0;
 
-/** Comprueba una condición y lo reporta. */
+
 function comprobar(descripcion: string, condicion: boolean, detalle?: unknown): void {
   if (condicion) {
     console.log(`  OK   ${descripcion}`);
@@ -37,7 +24,7 @@ function comprobar(descripcion: string, condicion: boolean, detalle?: unknown): 
   }
 }
 
-/** Ejecuta una tool registrada por su nombre, con el input indicado. */
+
 async function llamarTool(nombre: string, input: Record<string, unknown> = {}): Promise<unknown> {
   const tool = toolRegistry.obtenerTools().find((t) => t.name === nombre);
   if (!tool) throw new Error(`No existe la tool '${nombre}'.`);
@@ -56,8 +43,8 @@ async function main(): Promise<void> {
   const tools = toolRegistry.obtenerTools();
   comprobar("Hay herramientas registradas", tools.length > 0, { total: tools.length });
 
-  // Cada tool debe llevar el prefijo de su dominio: es lo que permite al modelo
-  // deducir el dominio por el nombre.
+  
+  
   const malPrefijadas = modulos.flatMap((modulo) =>
     modulo.tools.filter((t) => !t.name.startsWith(modulo.prefix)).map((t) => t.name),
   );
@@ -80,10 +67,10 @@ async function main(): Promise<void> {
   comprobar("El servidor MCP se construye sin errores", Boolean(server));
 
   console.log("\n=== 3. Detección de fabricante (datos puros) ===");
-  // Se comprueban los prompts característicos de cada fabricante. Es lógica pura
-  // (no abre ninguna consola), así que se puede probar sin hardware.
+  
+  
   const casos: Array<[string, string]> = [
-    ["Router>", "conservative"], // prompt de usuario IOS sin más datos: ambiguo
+    ["Router>", "conservative"], 
     ["R1(config)#", "cisco"],
     ["<Huawei>", "huawei"],
     ["[Huawei-GigabitEthernet0/0/1]", "huawei"],
@@ -100,12 +87,12 @@ async function main(): Promise<void> {
     );
   }
 
-  // El tipo declarado manda sobre el prompt (nivel 1 de la resolución).
+  
   const declarado = resolverVendor({ typeDevice: "HUAWEI", prompt: "R1#" });
   comprobar("El typeDevice declarado tiene prioridad sobre el prompt", declarado.id === "huawei", {
     obtenido: declarado.id,
   });
-  // Sin dato alguno, el perfil conservador no inventa transiciones.
+  
   const conservador = resolverVendor({});
   comprobar(
     "Sin datos se usa el perfil conservador (sin transiciones inventadas)",
@@ -118,7 +105,7 @@ async function main(): Promise<void> {
     comprobar("SerialPort.list() responde", Array.isArray(puertos), { total: puertos.length });
     console.log(`       ${puertos.length} puerto(s) detectado(s): ${puertos.map((p) => p.path).join(", ") || "(ninguno)"}`);
   } catch (error) {
-    // No es un fallo de la suite: un equipo sin adaptador serie es lo normal.
+    
     console.log(`  AVISO  No se pudieron enumerar los puertos serie: ${String(error)}`);
   }
 
@@ -167,7 +154,7 @@ async function main(): Promise<void> {
   comprobar("Ya no quedan pasos pendientes", trasMarcar.resumen.pendientes === 0, trasMarcar.resumen);
   comprobar("El paso figura como hecho", trasMarcar.resumen.hechos === 1);
 
-  // Un paso fallido exige motivo: sin él la tool debe rechazar la llamada.
+  
   const sinMotivo = await llamarTool("plan_mark_step", {
     planPath: path.basename(creado.archivo),
     step: 1,
@@ -188,7 +175,7 @@ async function main(): Promise<void> {
   const leida = (await llamarTool("skills_read", { slug: "convencion-nombres" })) as { contenido: string };
   comprobar("skills_read devuelve el contenido", leida.contenido.includes("Routers"));
 
-  // Limpieza del plan de prueba.
+  
   await fs.unlink(creado.archivo).catch(() => undefined);
 
   console.log("\n=== 7. Rutas de configuración ===");

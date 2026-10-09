@@ -7,11 +7,10 @@ TypeScript monorepo with npm workspaces + Turborepo.
 - `packages/server` — `@packet-tools/server`: Express 5 + TypeScript backend (dev with `tsx`; production `node dist/app.js`). Detail in `packages/server/AGENTS.md`.
 - `packages/web` — `@packet-tools/web`: Next.js 16 + React 19 frontend. Detail in `packages/web/AGENTS.md`.
 - `packages/desktop` — `@package/desktop`: all-in-one Electron installer (NSIS/AppImage/deb). Detail in `packages/desktop/AGENTS.md`; intentionally no `build` script (turbo never builds it). Code there uses English identifiers and no comments.
-- `packages/mcp` — placeholder (README only, no `package.json`): not a real workspace, run no scripts there.
+- `packages/mcp` — `@packet-tools/mcp`: MCP (Model Context Protocol) server over stdio exposing the Packet Tools engine (Packet Tracer, GNS3, serial, Telnet, SSH) as tools. Real workspace. Detail in `packages/mcp/README.md`; its `src/`/`scripts/`/`test/` carry no comments (stripped on purpose). `dist/` is committed so `npx -y github:ph0Void/packet-tools packet-tools-mcp` works straight from the git repo.
 - `extension-packetracer/` — Cisco Packet Tracer extension in plain JavaScript. **Not an npm workspace** (only `packages/*` are); never build it with turbo. Detail in `extension-packetracer/AGENTS.md`.
 - `.agents/skills/` — canonical-format agent skills for repo development (`ai-sdk`, `frontend-design`, `grill-me`, `impeccable`, `vercel-react-best-practices`). **The Packet Tools backend does NOT read them**: its own skills live in the `KnowledgeBase type=SKILL` table; do not confuse them.
-- Public docs: `README.md` and `packages/*/README.md`.
-- All four `package.json` files are at **1.2.1** — keep them aligned before shipping.
+- Public docs: `README.md` and `packages/*/README.md`. The root, `server`, `web` and `desktop` `package.json` are at **1.2.1**; `mcp` at **1.2.3** (its own UI/extension line) — keep each line aligned before shipping.
 
 ## Commands (root)
 

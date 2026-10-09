@@ -1,14 +1,4 @@
-/**
- * Servidor MCP de Packet Tools.
- *
- * Capa de transporte del protocolo: crea el `McpServer` sobre **stdio** (el
- * estándar que consumen Claude Code, Codex CLI, OpenCode, GitHub Copilot, LM
- * Studio y cualquier cliente MCP) y le conecta las tools del registro.
- *
- * NO hay lógica condicional por cliente. El protocolo MCP ya es agnóstico: si
- * esto implementa bien el estándar, funciona igual en todos. Cualquier `if`
- * mirando el `clientInfo` sería un error de diseño.
- */
+
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { toolRegistry } from "@/core/ToolRegistry";
@@ -23,25 +13,20 @@ import {
   iniciarBridge,
 } from "@/domains/packetTracer/PacketTracerBridgeServer";
 
-/** Nombre y versión que el servidor declara ante el cliente MCP. */
-const NOMBRE_SERVIDOR = "packet-tools-mcp";
-const VERSION_SERVIDOR = "1.0.0";
 
-/**
- * Construye el servidor MCP con todo registrado, sin arrancarlo.
- *
- * Se separa del arranque para poder reutilizarlo desde las pruebas (llamar a
- * las tools sin abrir stdio) y para que el orden de inicialización sea explícito.
- */
+const NOMBRE_SERVIDOR = "packet-tools-mcp";
+const VERSION_SERVIDOR = "1.2.3";
+
+
 export function construirServidor(): McpServer {
   const server = new McpServer(
     { name: NOMBRE_SERVIDOR, version: VERSION_SERVIDOR },
     {
       capabilities: {
         tools: {},
-        // `resources` se usa para exponer las skills del usuario como contenido
-        // legible por el cliente (ver `skills/SkillResources.ts`). Los clientes
-        // que no lo soporten siguen teniendo las tools `list_skills`/`read_skill`.
+        
+        
+        
         resources: {},
       },
       instructions: construirInstrucciones(),
@@ -55,14 +40,7 @@ export function construirServidor(): McpServer {
   return server;
 }
 
-/**
- * Instrucciones globales que el cliente MCP entrega al modelo.
- *
- * Es el único sitio donde se puede inyectar "contexto de sistema" de forma
- * estándar: MCP no tiene un canal de system prompt propio, así que el campo
- * `instructions` es la vía correcta (los clientes que lo ignoren pierden esto,
- * pero no el resto de la funcionalidad).
- */
+
 function construirInstrucciones(): string {
   const dominios = toolRegistry
     .obtenerModulos()
@@ -88,25 +66,13 @@ function construirInstrucciones(): string {
   ].join("\n");
 }
 
-/**
- * Arranca el servidor sobre stdio y deja el proceso vivo.
- *
- * stdio no tiene un evento de "cierre" fiable, así que la limpieza se engancha a
- * las señales del proceso. Es importante cerrar Prisma: si no, SQLite puede
- * quedarse con el archivo bloqueado.
- *
- * ORDEN DE ARRANQUE: el puente de Packet Tracer se lanza en paralelo, sin
- * bloquear el handshake de stdio. El handshake es lo único que el cliente está
- * esperando de verdad, y un puerto ocupado (u otro fallo al escuchar) NO puede
- * dejar al cliente MCP colgado sin servidor; solo deja sin Packet Tracer a este
- * proceso, y con un mensaje accionable.
- */
+
 export async function arrancarServidor(): Promise<void> {
   const server = construirServidor();
   const transport = new StdioServerTransport();
 
-  // Se dispara sin esperar: `iniciarBridge` no propaga fallos (los registra y
-  // deja el puente inactivo), y el `catch` solo cubre lo que se le escapara.
+  
+  
   const puenteListo = iniciarBridge().catch((error: unknown) => {
     Logger.error("No se pudo iniciar el bridge de Packet Tracer.", {
       error: error instanceof Error ? error.message : String(error),
@@ -115,8 +81,8 @@ export async function arrancarServidor(): Promise<void> {
 
   await server.connect(transport);
 
-  // Se espera solo a que la promesa quede resuelta (o rechazada y registrada) para
-  // que el mensaje de "listo" sea coherente con el estado real del puente.
+  
+  
   await puenteListo;
 
   Logger.info(
@@ -134,8 +100,8 @@ export async function arrancarServidor(): Promise<void> {
     if (cerrando) return;
     cerrando = true;
     Logger.info(`Cerrando servidor MCP (${motivo}).`);
-    // El bridge se detiene ANTES de cerrar el transporte: si se dejara, el puerto
-    // seguiría ocupado y el siguiente arranque se encontraría un EADDRINUSE.
+    
+    
     await detenerBridge().catch((error: unknown) => {
       Logger.debug("Error al detener el bridge de Packet Tracer.", { error: String(error) });
     });
@@ -150,6 +116,6 @@ export async function arrancarServidor(): Promise<void> {
 
   process.on("SIGINT", () => void cerrar("SIGINT"));
   process.on("SIGTERM", () => void cerrar("SIGTERM"));
-  // Cuando el cliente MCP cierra stdin, la sesión terminó.
+  
   process.stdin.on("close", () => void cerrar("stdin cerrado"));
 }

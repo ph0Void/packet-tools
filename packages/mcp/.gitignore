@@ -1,0 +1,4 @@
+.packet_tools_mcp.db
+.packet_tools_mcp.db-journal
+plans/*.md
+!plans/README.md

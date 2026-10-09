@@ -1,21 +1,4 @@
-/**
- * Dominio `@packet-tracer`: las herramientas del bridge de la extensión de
- * Packet Tracer, expuestas como tools MCP.
- *
- * El bridge lo aloja el propio servidor MCP (`PacketTracerBridgeServer.ts`, en
- * `MCP_BRIDGE_PORT`), NO el backend de Packet Tools: para usar este dominio solo
- * hace falta Packet Tracer abierto con la extensión conectada a ese puerto.
- *
- * PROCEDENCIA: los nombres y los argumentos se toman de `TOOL_ARGS` de
- * `plugin-packetapi/interface/interface.js`, que es el contrato REAL del motor
- * (cualquier nombre que no esté ahí lo rechaza la extensión). Se agrupan por
- * prefijo `packet_tracer_` para que el modelo sepa el dominio por el nombre.
- *
- * NOTA SOBRE LOS SCHEMAS: los del servidor (`ciscoPacketTracer/Tool.ts`) validan
- * contra el catálogo real de modelos antes de llamar. Aquí se mantiene esa idea
- * donde aporta (modelo de dispositivo) usando `listDeviceModels` como fuente de
- * verdad, porque el catálogo lo decide Packet Tracer y no nosotros.
- */
+
 import { z } from "zod";
 import { definirTool } from "@/core/ToolRegistry";
 import type { ModuloDominio, DefinicionToolGenerica } from "@/core/ToolRegistry";
@@ -24,13 +7,7 @@ import { envConfig } from "@/config/EnvConfig";
 import { llamarPacketTracer, operacionOk } from "./PacketTracerBridge";
 import { estadoBridge } from "./PacketTracerBridgeServer";
 
-/**
- * Envuelve una llamada simple al bridge devolviendo el payload tal cual viene.
- *
- * Se devuelve el JSON del motor (no un texto "ok") porque el payload trae
- * información que el modelo necesita para el paso siguiente: los `results` por
- * comando, los avisos de la extensión, el detalle de los fallos parciales...
- */
+
 async function simple(
   herramienta: string,
   input: Record<string, unknown>,
@@ -39,14 +16,7 @@ async function simple(
   return resultado ?? { success: false, error: "La extensión no devolvió datos." };
 }
 
-/**
- * Consulta el catálogo de modelos que Packet Tracer acepta de verdad.
- *
- * POR QUÉ ANTES DE COLOCAR UN EQUIPO: el catálogo lo manda el motor (~140
- * modelos reales), no una lista escrita a mano. Validar aquí convierte un
- * rechazo opaco de Packet Tracer en un mensaje con los modelos válidos más
- * parecidos, que es lo que el modelo necesita para corregir sin adivinar.
- */
+
 async function leerCatalogoDeModelos(): Promise<string[]> {
   const bruto = (await llamarPacketTracer("listDeviceModels", {})) as Record<
     string,
@@ -72,12 +42,7 @@ async function leerCatalogoDeModelos(): Promise<string[]> {
   return Array.from(new Set(ids.filter(Boolean)));
 }
 
-/**
- * Sugiere los modelos del catálogo más parecidos al pedido.
- *
- * Dos caracteres de prefijo común ya son una pista real (`296` → `2960-24TT`);
- * con un término sin parecido no se propone nada, para no inventar sugerencias.
- */
+
 function modelosParecidos(pedido: string, catalogo: string[]): string[] {
   const termino = pedido.trim().toLowerCase();
   if (!termino) return [];
@@ -104,23 +69,19 @@ function modelosParecidos(pedido: string, catalogo: string[]): string[] {
     .map((entrada) => entrada.candidato);
 }
 
-/**
- * Tipos de enlace que acepta el motor (mismos que `ALLOWED_LINK_TYPES` del server).
- */
+
 const TIPOS_ENLACE = ["straight", "cross", "fiber", "serial", "auto"] as const;
 
-/**
- * Modos de simulación del motor.
- */
+
 const MODOS_SIMULACION = ["realtime", "simulation"] as const;
 
-// ---------------------------------------------------------------------------
-// Definición de las herramientas
-// ---------------------------------------------------------------------------
+
+
+
 const herramientas: DefinicionToolGenerica[] = [
-  // -------------------------------------------------------------------------
-  // Inventario y lectura
-  // -------------------------------------------------------------------------
+  
+  
+  
   definirTool({
     name: "packet_tracer_list_device_models",
     description:
@@ -258,9 +219,9 @@ const herramientas: DefinicionToolGenerica[] = [
       "Úsala para resumir el estado de la red al usuario.",
     inputSchema: {},
     handler: async () => {
-      // El motor no tiene una herramienta de informe como tal: el informe se
-      // compone aquí a partir de las lecturas que sí existen. Es composición,
-      // no lógica de negocio duplicada.
+      
+      
+      
       const red = (await llamarPacketTracer("getNetwork", {})) as {
         result?: {
           deviceCount?: number;
@@ -302,9 +263,9 @@ const herramientas: DefinicionToolGenerica[] = [
       };
     },
   }),
-  // -------------------------------------------------------------------------
-  // Topología: escritura
-  // -------------------------------------------------------------------------
+  
+  
+  
   definirTool({
     name: "packet_tracer_add_device",
     description:
@@ -436,9 +397,9 @@ const herramientas: DefinicionToolGenerica[] = [
     },
     handler: async ({ deviceName, power }) => simple("setPower", { deviceName, power }),
   }),
-  // -------------------------------------------------------------------------
-  // Configuración de equipos finales
-  // -------------------------------------------------------------------------
+  
+  
+  
   definirTool({
     name: "packet_tracer_configure_pc_ip",
     description:
@@ -454,8 +415,8 @@ const herramientas: DefinicionToolGenerica[] = [
       dnsServer: z.string().optional().describe("Servidor DNS"),
     },
     handler: async (args) => {
-      // La misma regla de negocio que valida el servidor: sin ella, el motor
-      // devuelve success:true habiendo tocado solo el flag de DHCP.
+      
+      
       if (args.dhcpEnabled === false) {
         const faltan: string[] = [];
         if (!args.ipaddress?.trim()) faltan.push("ipaddress");
@@ -472,9 +433,9 @@ const herramientas: DefinicionToolGenerica[] = [
       return simple("configurePcIp", args);
     },
   }),
-  // -------------------------------------------------------------------------
-  // Motor de comandos IOS
-  // -------------------------------------------------------------------------
+  
+  
+  
   definirTool({
     name: "packet_tracer_run_device_commands",
     description:
@@ -595,9 +556,9 @@ const herramientas: DefinicionToolGenerica[] = [
         ...(esperarMs !== undefined ? { options: { esperarMs } } : {}),
       }),
   }),
-  // -------------------------------------------------------------------------
-  // Simulación
-  // -------------------------------------------------------------------------
+  
+  
+  
   definirTool({
     name: "packet_tracer_get_simulation_status",
     description: "Devuelve el estado de la simulación: modo (tiempo real o simulación), tiempo actual e información de fotogramas.",
@@ -704,9 +665,9 @@ const herramientas: DefinicionToolGenerica[] = [
     handler: async ({ deviceName, interfaceName }) =>
       simple("restoreLink", { deviceName, interfaceName }),
   }),
-  // -------------------------------------------------------------------------
-  // Workspace (.pkt)
-  // -------------------------------------------------------------------------
+  
+  
+  
   definirTool({
     name: "packet_tracer_clear_workspace",
     description:
@@ -741,25 +702,15 @@ const herramientas: DefinicionToolGenerica[] = [
   }),
 ];
 
-// ---------------------------------------------------------------------------
-// Motor de configuración con verificación
-// ---------------------------------------------------------------------------
-/**
- * Ejecuta un lote de configuración con el motor de dos fases y VERIFICA el
- * resultado contra la configuración real del equipo.
- *
- * POR QUÉ EXISTE ESTA FUNCIÓN (y no se llama directo al motor): el lote se
- * teclea en el lanzamiento (`runCommandAsync` recorre las líneas antes de
- * devolver el `pendienteId`), y el resultado solo se puede saber sondeando
- * (`pollCommandResult`) hasta que el evento `commandEnded` cierra el pendiente.
- * Hacerlo en una sola llamada ciega es lo que provocaba que la tool afirmara
- * "guardado en NVRAM" sin haber mirado nada.
- */
+
+
+
+
 async function ejecutarLoteConVerificacion(
   deviceName: string,
   lineas: string[],
 ): Promise<unknown> {
-  // 1) Pre-flight: existe el equipo y tiene consola IOS accesible.
+  
   const info = (await llamarPacketTracer("getDeviceInfo", { deviceName })) as Record<
     string,
     unknown
@@ -772,7 +723,7 @@ async function ejecutarLoteConVerificacion(
         `No se ha enviado el lote. Comprueba el nombre con packet_tracer_get_network.`,
     };
   }
-  // 2) Lanzamiento del lote en modo configuración global.
+  
   const lanzamiento = (await llamarPacketTracer("runCommandAsync", {
     deviceName,
     commands: lineas,
@@ -796,8 +747,8 @@ async function ejecutarLoteConVerificacion(
         `así que no se puede seguir el resultado. Salida del motor: ${JSON.stringify(lanzamiento).slice(0, 300)}`,
     };
   }
-  // 3) Sondeo hasta que termine o se agote el presupuesto. El techo es corto
-  //    porque el tecleo ya se pagó en el lanzamiento: esto solo cubre la cola.
+  
+  
   const PRESUPUESTO_MS = 25_000;
 
   const inicio = Date.now();
@@ -808,10 +759,10 @@ async function ejecutarLoteConVerificacion(
       options: { esperarMs: 1000 },
     })) as Record<string, unknown>;
     if (ultimo?.done === true || ultimo?.success === false) break;
-    // `reintentar` significa que un prompt pendiente se comió el comando: el
-    // motor ya lo reintenta él mismo, así que aquí solo se sigue sondeando.
+    
+    
   }
-  // 4) Verificación por LECTURA de la configuración real del equipo.
+  
   const verificacion = await verificarLote(deviceName, lineas, ultimo);
 
   const completado = ultimo?.done === true;
@@ -835,14 +786,7 @@ async function ejecutarLoteConVerificacion(
   };
 }
 
-/**
- * Contraste del lote contra la configuración real del equipo.
- *
- * Solo se comprueban las dos líneas que aparecen literalmente en el
- * running-config (`hostname` e `ip address`): son las únicas cuya presencia o
- * ausencia no admite interpretación. Si no se puede leer la configuración, se
- * dice explícitamente en vez de dar el lote por bueno.
- */
+
 async function verificarLote(
   deviceName: string,
   lineas: string[],
@@ -917,20 +861,10 @@ async function verificarLote(
   return { realizada: true, ok: datos.every((d) => d.ok), datos };
 }
 
-// ---------------------------------------------------------------------------
-// Sonda de conectividad
-// ---------------------------------------------------------------------------
-/**
- * Comprueba el estado del bridge del MCP y que la extensión responda, para dar un
- * error claro ANTES de que el modelo encadene diez llamadas que van a fallar todas
- * igual.
- *
- * Se consulta primero `estadoBridge()` (que es memoria, coste cero) para separar
- * los dos fallos que antes se confundían en uno: "el puente del MCP no está
- * escuchando" (problema de arranque/puerto del propio servidor MCP) y "el puente
- * está pero la extensión no se ha conectado" (problema de Packet Tracer). Solo si
- * las dos cosas están bien se gasta una llamada real al motor.
- */
+
+
+
+
 async function comprobarBridge(): Promise<unknown> {
   const estado = estadoBridge();
 
@@ -985,7 +919,7 @@ async function comprobarBridge(): Promise<unknown> {
   };
 }
 
-// La sonda se añade al final para que quede cerca de su implementación.
+
 herramientas.push(
   definirTool({
     name: "packet_tracer_connection_status",

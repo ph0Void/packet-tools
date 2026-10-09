@@ -286,13 +286,28 @@ aparece sin reiniciar el servidor MCP — y sin obligar a reiniciar el cliente d
 
 ---
 
-## 8. Configuración en cada cliente
+## 8. Instalación en tu agente de código
 
 El servidor se lanza **siempre igual**; lo único que cambia es dónde se declara.
+La vía recomendada no requiere clonar ni compilar nada: se ejecuta directo desde
+GitHub con `npx`.
 
 ```bash
-node
+npx -y github:ph0Void/packet-tools packet-tools-mcp
 ```
+
+`npx` descarga la última versión de la rama principal, instala sus dependencias y
+deja el servidor MCP escuchando en **stdio**. La primera ejecución tarda más
+(descarga + compilación puntual); las siguientes usan la caché de `npx`.
+
+> ⚠️ **Compatibilidad con el plugin de Packet Tracer**
+>
+> La integración de Packet Tracer (el puente `packet_tracer_*` en el puerto
+> `7532`) necesita la **extensión de Packet Tracer v1.1.0 o superior**. Con una
+> versión anterior el MCP arranca y el resto de dominios (GNS3, serial, SSH,
+> Telnet, plan y skills) funcionan con normalidad, pero la extensión no se
+> conectará al puente y `packet_tracer_connection_status` lo reportará como
+> desconectado. Actualiza la extensión a `v1.1.0+` antes de usar Packet Tracer.
 
 Durante el desarrollo (sin compilar) puede usarse
 `npx tsx C:/.../packages/mcp/src/app.ts`.
@@ -305,12 +320,8 @@ Durante el desarrollo (sin compilar) puede usarse
 {
   "mcpServers": {
     "packet-tools": {
-      "command": "node",
-      "args": ["   "],
-      "env": {
-        "DATABASE_URL_MCP": "file:.packet_tools_mcp.db",
-        "MCP_BRIDGE_PORT": "7532"
-      }
+      "command": "npx",
+      "args": ["-y", "github:ph0Void/packet-tools", "packet-tools-mcp"]
     }
   }
 }
@@ -325,7 +336,7 @@ Durante el desarrollo (sin compilar) puede usarse
   "mcp": {
     "packet-tools": {
       "type": "local",
-      "command": ["node", "   "],
+      "command": ["npx", "-y", "github:ph0Void/packet-tools", "packet-tools-mcp"],
       "enabled": true
     }
   }
@@ -338,8 +349,8 @@ Durante el desarrollo (sin compilar) puede usarse
 
 ```toml
 [mcp_servers.packet-tools]
-command = "node"
-args = ["   "]
+command = "npx"
+args = ["-y", "github:ph0Void/packet-tools", "packet-tools-mcp"]
 ```
 
 ### GitHub Copilot (VS Code)
@@ -351,8 +362,23 @@ args = ["   "]
   "servers": {
     "packet-tools": {
       "type": "stdio",
-      "command": "node",
-      "args": ["   "]
+      "command": "npx",
+      "args": ["-y", "github:ph0Void/packet-tools", "packet-tools-mcp"]
+    }
+  }
+}
+```
+
+### Cursor / Windsurf / otros clientes MCP
+
+Mismo bloque `command` + `args`, en el archivo `mcp.json` del cliente:
+
+```json
+{
+  "mcpServers": {
+    "packet-tools": {
+      "command": "npx",
+      "args": ["-y", "github:ph0Void/packet-tools", "packet-tools-mcp"]
     }
   }
 }
@@ -360,18 +386,47 @@ args = ["   "]
 
 ### LM Studio
 
-`mcp.json` en la carpeta de LM Studio:
+`mcp.json` en la carpeta de LM Studio (usa la variante con `command` + `args`):
 
 ```json
 {
   "mcpServers": {
     "packet-tools": {
-      "command": "node",
-      "args": ["   "]
+      "command": "npx",
+      "args": ["-y", "github:ph0Void/packet-tools", "packet-tools-mcp"]
     }
   }
 }
 ```
+
+### DeepSeek / agentes que sólo aceptan un comando
+
+Algunos agentes (DeepSeek y clientes minimalistas) piden el lanzador como una
+única línea. Equivale a lo anterior:
+
+```bash
+npx -y github:ph0Void/packet-tools packet-tools-mcp
+```
+
+### Variables de entorno opcionales
+
+Se pueden añadir a cualquier configuración de las anteriores. Todas tienen un
+valor por defecto razonable:
+
+| Variable              | Para qué sirve                                                       | Default                   |
+| --------------------- | -------------------------------------------------------------------- | ------------------------- |
+| `MCP_BRIDGE_PORT`     | Puerto del puente de Packet Tracer del MCP                            | `7532`                    |
+| `MCP_BRIDGE_ENABLED`  | `false` deja el MCP sin puente (sólo GNS3/serial/SSH/Telnet)          | `true`                    |
+| `MCP_DATA_DIR`        | Carpeta de la BD, skills y planes                                     | `~/.packet-tools/mcp`     |
+| `DATABASE_URL_MCP`    | Ruta del SQLite del MCP (relativa a `MCP_DATA_DIR`)                   | `file:.packet_tools_mcp.db` |
+| `MCP_GNS3_URL`        | URL por defecto del API de GNS3 cuando no hay una configurada         | vacío                     |
+| `PT_EXTENSION_SECRET` | Secreto compartido con la extensión (vacío = identidad por user-agent)| vacío                     |
+| `MCP_DEBUG`           | Logs de depuración por **stderr**                                     | `false`                   |
+
+> **Datos del MCP:** cuando se ejecuta con `npx` (caché inmutable), la base
+> SQLite, las skills y los planes se guardan en `~/.packet-tools/mcp`, así que
+> sobreviven a limpiezas de la caché de npm. Al ejecutar desde un clon se guardan
+> dentro de `packages/mcp`.
 
 > **Compatibilidad de `resources`:** si un cliente no soporta `resources` MCP (es
 > el caso de los más ligeros, como LM Studio), las skills siguen siendo accesibles

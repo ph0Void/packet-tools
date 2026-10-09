@@ -1,16 +1,4 @@
-/**
- * Adaptadores concretos de `DeviceTransport`.
- *
- * Cada uno envuelve un cliente del servidor (`SerialPortClient`, `SshClient`,
- * `TelnetClient`) para uniformar la interfaz. Se instancian por CONEXIÓN (no son
- * singletons): el MCP mantiene sus propias sesiones, independientes de la UI web.
- *
- * POR QUÉ NO SE REUTILIZAN LOS CLIENTES DIRECTAMENTE
- * Sus firmas no coinciden entre sí (`executeCommands` en SSH/Telnet y
- * `executeCommand` en serie), devuelven `string` sin la información de vendor, y
- * todos colapsan el detalle de la ejecución. Envolverlos aquí permite además
- * conectar UNA vez y enviar VARIOS comandos, que es lo que necesita el motor.
- */
+
 import { SerialPort } from "serialport";
 import { Client as Ssh2Client } from "ssh2";
 import net from "node:net";
@@ -21,14 +9,14 @@ import type {
 } from "./DeviceTransport";
 import { McpToolError } from "@/core/errors";
 
-/** Terminador de línea por protocolo (mismo criterio que el servidor). */
+
 const EOL_POR_PROTOCOLO: Record<ProtocoloTransporte, string> = {
   SSH: "\r",
   TELNET: "\r\n",
   SERIAL: "\r\n",
 };
 
-/** Espera hasta que `condicion()` sea cierta, sondeando cada `pasoMs`. */
+
 async function esperarA(
   condicion: () => boolean,
   timeoutMs: number,
@@ -42,24 +30,17 @@ async function esperarA(
   return condicion();
 }
 
-// ---------------------------------------------------------------------------
-// Serie (RS-232 / USB)
-// ---------------------------------------------------------------------------
 
-/**
- * Puerto serie.
- *
- * Se implementa sobre `serialport` en vez de envolver `SerialPortClient` porque
- * ese cliente abre y CIERRA la conexión en cada `executeCommand`, y aquí hace
- * falta mantenerla abierta para poder leer el banner de arranque (que es como se
- * detecta el fabricante) y para enviar varios comandos seguidos.
- */
+
+
+
+
 export class SerialTransport implements DeviceTransport {
   readonly protocol: ProtocoloTransporte = "SERIAL";
   private puerto: SerialPort | null = null;
-  /** Búfer acumulado de lo recibido; el motor lo va vaciando con readOutput. */
+  
   private buffer = "";
-  /** Marca de tiempo del último byte recibido (para detectar el silencio). */
+  
   private ultimoDato = 0;
 
   constructor(private readonly opciones: OpcionesConexion) {}
@@ -110,8 +91,8 @@ export class SerialTransport implements DeviceTransport {
       });
 
       puerto.on("error", (error: Error) => {
-        // Los errores posteriores a la apertura no se pueden propagar por
-        // promesa; se anotan en el búfer para que la siguiente lectura los vea.
+        
+        
         this.buffer += `\n[ERROR DEL PUERTO SERIE: ${error.message}]\n`;
         this.ultimoDato = Date.now();
       });
@@ -164,8 +145,8 @@ export class SerialTransport implements DeviceTransport {
           );
           return;
         }
-        // `drain` espera a que el dato salga de verdad del búfer del sistema;
-        // sin él, el equipo puede recibir el comando siguiente a medias.
+        
+        
         this.puerto!.drain(() => resolver());
       });
     });
@@ -176,7 +157,7 @@ export class SerialTransport implements DeviceTransport {
     const maxMs = options.maxMs ?? 20_000;
     const limite = Date.now() + maxMs;
 
-    // Se espera a que haya datos y luego a que se callen `idleMs`.
+    
     while (Date.now() < limite) {
       if (this.buffer.length > 0 && Date.now() - this.ultimoDato >= idleMs) break;
       await new Promise((r) => setTimeout(r, 50));
@@ -188,7 +169,7 @@ export class SerialTransport implements DeviceTransport {
   }
 }
 
-/** Enumera los puertos serie del sistema. */
+
 export async function listarPuertosSerie(): Promise<
   Array<{
     path: string;
@@ -221,11 +202,11 @@ export async function listarPuertosSerie(): Promise<
   }
 }
 
-// ---------------------------------------------------------------------------
-// SSH
-// ---------------------------------------------------------------------------
 
-/** Sesión SSH sobre `ssh2`, con shell interactiva para poder leer el prompt. */
+
+
+
+
 export class SshTransport implements DeviceTransport {
   readonly protocol: ProtocoloTransporte = "SSH";
   private cliente: Ssh2Client | null = null;
@@ -261,9 +242,9 @@ export class SshTransport implements DeviceTransport {
       }, 15_000);
 
       cliente.on("ready", () => {
-        // Se pide una SHELL interactiva (no `exec`) porque el motor necesita
-        // leer el prompt para resolver el fabricante y para saber cuándo terminó
-        // cada comando.
+        
+        
+        
         cliente.shell((error, stream) => {
           if (error) {
             clearTimeout(tiempoLimite);
@@ -349,11 +330,11 @@ export class SshTransport implements DeviceTransport {
   }
 }
 
-// ---------------------------------------------------------------------------
-// Telnet
-// ---------------------------------------------------------------------------
 
-/** Sesión Telnet sobre `net.Socket`, con el login resuelto a mano. */
+
+
+
+
 export class TelnetTransport implements DeviceTransport {
   readonly protocol: ProtocoloTransporte = "TELNET";
   private socket: net.Socket | null = null;
@@ -414,9 +395,9 @@ export class TelnetTransport implements DeviceTransport {
       });
     });
 
-    // Login: se espera el prompt de usuario y se envía, igual que hace el
-    // cliente del servidor. Se hace DESPUÉS de conectar para no bloquear la
-    // detección del banner (que es lo que identifica al fabricante).
+    
+    
+    
     const usuario = this.opciones.username?.trim();
     if (usuario) {
       await this.esperarSalida(1500);
@@ -428,7 +409,7 @@ export class TelnetTransport implements DeviceTransport {
     }
   }
 
-  /** Espera a que llegue salida o se agote el tiempo (sin vaciar el búfer). */
+  
   private async esperarSalida(ms: number): Promise<void> {
     const limite = Date.now() + ms;
     while (Date.now() < limite) {
@@ -447,7 +428,7 @@ export class TelnetTransport implements DeviceTransport {
         socket.destroy();
         resolver();
       });
-      // Si el equipo no cierra, se fuerza para no colgar el proceso.
+      
       setTimeout(() => {
         socket.destroy();
         resolver();
@@ -480,17 +461,11 @@ export class TelnetTransport implements DeviceTransport {
   }
 }
 
-// ---------------------------------------------------------------------------
-// Fábrica
-// ---------------------------------------------------------------------------
 
-/**
- * Crea el transporte adecuado según el protocolo.
- *
- * Es el único punto que conoce los tres adaptadores: el motor de comandos y los
- * dominios trabajan contra `DeviceTransport`. Añadir un protocolo nuevo es
- * implementar la interfaz y ampliar este `switch`.
- */
+
+
+
+
 export function crearTransporte(opciones: OpcionesConexion): DeviceTransport {
   switch (opciones.protocol) {
     case "SERIAL":
@@ -500,14 +475,14 @@ export function crearTransporte(opciones: OpcionesConexion): DeviceTransport {
     case "TELNET":
       return new TelnetTransport(opciones);
     default:
-      // TypeScript obliga a que este `default` sea inalcanzable: si alguien
-      // añade un protocolo a `ProtocoloTransporte` y olvida su caso, el `never`
-      // hace que la compilación falle en vez de fallar en tiempo de ejecución.
+      
+      
+      
       return lanzarProtocoloDesconocido(opciones.protocol);
   }
 }
 
-/** Error por protocolo no soportado (mantiene el `switch` exhaustivo). */
+
 function lanzarProtocoloDesconocido(protocolo: never): never {
   throw new McpToolError(
     "VALIDACION",

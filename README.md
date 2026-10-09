@@ -17,6 +17,7 @@ También se distribuye como **aplicación de escritorio** con instalador propio:
 - Repositorio: [github.com/ph0Void/packet-tools](https://github.com/ph0Void/packet-tools)
 - [Backend (`packages/server`)](./packages/server/README.md)
 - [Frontend (`packages/web`)](./packages/web/README.md)
+- [MCP (`packages/mcp`)](./packages/mcp/README.md)
 - [Extensión de Packet Tracer](./extension-packetracer/README.md)
 
 ## Descripción
@@ -92,6 +93,29 @@ El agente no es un chatbot que solo responde texto: es un **controlador de conso
 - Historial de conversaciones por usuario estilo chat, con tarjetas de herramientas, razonamiento en vivo y segmentos intercalados de texto y ejecución.
 - La selección de modelo de IA y de conexión/dispositivo se recuerda por chat (persistida en la base de datos y en caché local).
 
+### Servidor MCP (Model Context Protocol)
+
+- Expone el motor de Packet Tools (Packet Tracer, GNS3, serial, Telnet y SSH) como **herramientas MCP** que cualquier agente de código puede invocar: **Claude Code, Codex CLI, OpenCode, VS Code (GitHub Copilot), LM Studio, Cursor, Windsurf, DeepSeek** y cualquier cliente MCP estándar.
+- Se ejecuta directo desde GitHub, sin clonar ni compilar:
+  ```json
+  {
+    "mcp": {
+      "packet-tools": {
+        "type": "local",
+        "command": [
+          "npx",
+          "-y",
+          "github:ph0Void/packet-tools",
+          "packet-tools-mcp"
+        ],
+        "enabled": true
+      }
+    }
+  }
+  ```
+- **95 herramientas en 7 dominios** (`packet_tracer_*`, `gns3_*`, `serial_*`, `telnet_*`, `ssh_*`, `plan_*`, `skills_*`) sobre transporte **stdio**.
+- La integración con Packet Tracer necesita la **extensión v1.1.0 o superior**; el resto de dominios funciona sin ella. Detalle y configuración por cliente en [`packages/mcp/README.md`](./packages/mcp/README.md).
+
 ## Stack tecnológico
 
 | Capa                  | Tecnología                                                                                               |
@@ -115,7 +139,7 @@ Mono-Packet-Tools/
 │   ├── server/                 # Backend: API, agentes, sockets, Prisma (más detalle en packages/server/README.md)
 │   ├── web/                    # Frontend: dashboard, chat, terminal, workspace (más detalle en packages/web/README.md)
 │   ├── desktop/                # Instalador de escritorio Electron (NSIS, AppImage, deb; ver packages/desktop/README.md)
-│   └── mcp/                    # Cliente MCP (en construcción)
+│   └── mcp/                    # Servidor MCP (Model Context Protocol)
 ├── extension-packetracer/      # Extensión nativa de Cisco Packet Tracer (JavaScript, cliente Socket.IO)
 ├── dockerfile                  # Imagen todo-en-uno (backend + frontend)
 ├── docker-compose.yml          # Despliegue con un comando y volumen para SQLite
@@ -277,7 +301,8 @@ Desde la raíz del monorepo:
 | ---------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
 | `npm run init`                                                                                 | Copia `.example.env` a `.env` e instala dependencias                                   |
 | `npm run dev`                                                                                  | Levanta backend y frontend en paralelo                                                 |
-| `npm run build`                                                                                | Compila backend y frontend                                                             |
+| `npm run build`                                                                                | Compila backend, frontend y servidor MCP                                               |
+| `npm run build:mcp`                                                                            | Compila sólo el servidor MCP (`packages/mcp`)                                          |
 | `npm run build-desktop`                                                                        | Genera el instalador de escritorio (Electron); acepta `-- --win` / `-- --linux`        |
 | `npm run lint`                                                                                 | ESLint del frontend                                                                    |
 | `npm run migrate`                                                                              | Crea y aplica migraciones (desarrollo)                                                 |
@@ -307,7 +332,6 @@ npm test -- --watch             # modo watch
 ## Próximos cambios
 
 - **Plantillas de configuración por fabricante**: el modelo `ConfigTemplate` ya está en la base de datos; falta el CRUD, la UI y la ejecución de plantillas con variables (`hostname`, `ip`, etc.) desde el chat y las tareas programadas.
-- **Cliente MCP**: `packages/mcp` será el puente con el Model Context Protocol para exponer y consumir herramientas del sistema de forma estandarizada.
 - **Delegación multi-agente más profunda**: evolucionar de "una directiva → un especialista" a "una directiva → múltiples agentes → delegación → ejecución → verificación → resultado", con síntesis final del supervisor.
 - **Más dispositivos y protocolos**: ampliar la cobertura para los fabricantes ya modelados (Huawei, Aruba, MikroTik).
 - **Listener syslog para GNS3**: capturar los logs de los dispositivos virtualizados (la API REST de GNS3 no los expone; requeriría un receptor UDP en el backend).

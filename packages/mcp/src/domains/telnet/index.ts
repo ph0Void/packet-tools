@@ -1,11 +1,4 @@
-/**
- * Dominio `@telnet`: sesiones Telnet contra equipos reales.
- *
- * Comparte TODO el motor con el resto de transportes (`transports/commandEngine.ts`):
- * detección de fabricante, preámbulo del perfil, saneado de comandos y
- * recorte de salida. Lo único propio de este dominio es abrir y cachear las
- * sesiones Telnet, para no reconectar en cada comando.
- */
+
 import { z } from "zod";
 import type {
   ModuloDominio,
@@ -19,15 +12,15 @@ import {
 } from "@/transports/commandEngine";
 import type { DeviceTransport } from "@/transports/DeviceTransport";
 
-/** Sesiones Telnet vivas, por `host:puerto`. */
+
 const sesiones = new Map<string, DeviceTransport>();
 
-/** Clave estable de una sesión Telnet. */
+
 function claveSesion(host: string, puerto: number): string {
   return `${host}:${puerto}`;
 }
 
-/** Obtiene o abre la sesión indicada. */
+
 async function obtenerSesion(
   host: string,
   puerto: number,
@@ -49,7 +42,7 @@ async function obtenerSesion(
   return transporte;
 }
 
-/** Cierra todas las sesiones Telnet (apagado ordenado y pruebas). */
+
 export async function cerrarSesionesTelnet(): Promise<void> {
   for (const transporte of sesiones.values()) {
     await transporte.disconnect().catch(() => undefined);

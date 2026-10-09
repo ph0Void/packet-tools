@@ -1,9 +1,4 @@
-/**
- * Utilidad de diagnóstico: muestra las tablas y las filas de la BD propia del MCP.
- *
- * Se usa durante el desarrollo para comprobar que las migraciones se aplicaron y
- * que las tools están escribiendo donde deben. No forma parte del servidor.
- */
+
 const Database = require("better-sqlite3");
 const path = require("node:path");
 

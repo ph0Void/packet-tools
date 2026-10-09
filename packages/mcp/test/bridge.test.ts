@@ -1,32 +1,4 @@
-﻿/**
- * Pruebas del bridge Socket.IO propio del servidor MCP
- * (`domains/packetTracer/PacketTracerBridgeServer.ts`).
- *
- * POR QUÉ ESTAS PRUEBAS EXISTEN
- * -----------------------------
- * El bridge es el único punto por el que una tool MCP llega a Packet Tracer, y es
- * también la pieza con reglas sutiles: solo la extensión registrada puede
- * responder un `tool_result`, un resultado huérfano o repetido debe ignorarse, y
- * una llamada en vuelo nunca puede quedar colgada (eso se traduciría en un turno de
- * modelo quemado esperando un timeout).
- *
- * Esas reglas no se comprueban con un doble en memoria: aquí se levantan clientes
- * `socket.io-client` REALES contra el servidor real (igual que la extensión real)
- * sobre un puerto EFÍMERO (`0`, elegido por el sistema), para no chocar con una
- * instancia en marcha ni depender de que un puerto concreto esté libre. El puente
- * se detiene al final, para no dejar el puerto ocupado.
- *
- * ESTILO: el mismo de `test/smoke.ts` (script con `comprobar()` y salida por
- * código de proceso, ejecutado con `tsx` desde `npm run test:bridge`).
- *
- * POR QUÉ ESTA PRUEBA ESCRIBE EN stderr Y NO EN stdout
- * ---------------------------------------------------
- * El servidor MCP es un proceso stdio: stdout es el canal EXCLUSIVO del protocolo
- * JSON-RPC. Además de que el Logger ya va a stderr, esta prueba lo VERIFICA:
- * intercepta `process.stdout.write` al arrancar y comprueba al final que no se
- * escribió absolutamente nada por ahí. Es el mismo requisito que se le impone al
- * servidor en producción, y aquí se puede comprobar sin montar un cliente MCP.
- */
+﻿
 import { io as crearCliente, type Socket as SocketCliente } from "socket.io-client";
 import {
   detenerBridge,
@@ -36,16 +8,10 @@ import {
   solicitarTool,
 } from "../src/domains/packetTracer/PacketTracerBridgeServer";
 
-/** Contador de fallos, para salir con código distinto de cero. */
+
 let fallos = 0;
 
-/**
- * Todo lo que el proceso intente escribir en stdout durante la prueba.
- *
- * Se traga en vez de imprimirse: si algo (el bridge, el Logger, una dependencia)
- * escribiera por stdout contaminaría el protocolo JSON-RPC, y esta comprobación
- * lo delata en lugar de dejarlo pasar.
- */
+
 const escriturasStdout: string[] = [];
 const escribirPorStdout = process.stdout.write.bind(process.stdout);
 process.stdout.write = ((chunk: unknown): boolean => {
@@ -53,12 +19,12 @@ process.stdout.write = ((chunk: unknown): boolean => {
   return true;
 }) as typeof process.stdout.write;
 
-/** Escribe el informe de la prueba por stderr (ver cabecera del módulo). */
+
 function linea(texto: string): void {
   process.stderr.write(`${texto}\n`);
 }
 
-/** Comprueba una condición y lo reporta. */
+
 function comprobar(descripcion: string, condicion: boolean, detalle?: unknown): void {
   if (condicion) {
     linea(`  OK    ${descripcion}`);
@@ -68,19 +34,12 @@ function comprobar(descripcion: string, condicion: boolean, detalle?: unknown): 
   }
 }
 
-/** Espera fija, en milisegundos. */
+
 function esperar(ms: number): Promise<void> {
   return new Promise((resolver) => setTimeout(resolver, ms));
 }
 
-/**
- * Aplica un plazo a una espera.
- *
- * Convierte un "se quedó colgada" en un FALLO con mensaje, en vez de dejar la
- * prueba colgada hasta que la mate el runner. Es imprescindible en las pruebas de
- * este fichero: un error de entrega mal escrito se manifiesta como una promesa que
- * nunca resuelve, y eso hay que verlo claro, no como un timeout de 3 minutos.
- */
+
 function conPlazo<T>(promesa: Promise<T>, ms = 5_000, etiqueta = "la respuesta"): Promise<T> {
   return Promise.race([
     promesa,
@@ -90,13 +49,7 @@ function conPlazo<T>(promesa: Promise<T>, ms = 5_000, etiqueta = "la respuesta")
   ]);
 }
 
-/**
- * Espera a que una condición sea cierta.
- *
- * Las conexiones socket.io son asíncronas y su orden no está garantizado (el
- * cliente puede ver `connect` antes de que el servidor haya corrido su handler
- * `connection`), así que comprobar "de golpe" daría falsos negativos.
- */
+
 async function esperarCondicion(condicion: () => boolean, ms = 3_000, paso = 20): Promise<boolean> {
   const limite = Date.now() + ms;
   while (Date.now() < limite) {
@@ -106,20 +59,15 @@ async function esperarCondicion(condicion: () => boolean, ms = 3_000, paso = 20)
   return condicion();
 }
 
-/** URL del puente, que solo se conoce después de arrancar (puede ser efímera). */
+
 let urlBridge = "";
 
-/**
- * Conecta un cliente simulando una extensión.
- *
- * Un user-agent con "Qt" es lo que delata a la extensión real (su webview), así
- * que se manda como cabecera extra.
- */
+
 function conectar(opciones: { userAgent?: string; clientType?: string } = {}): Promise<SocketCliente> {
   return new Promise((resolver, rechazar) => {
     const socket = crearCliente(urlBridge, {
       transports: ["websocket"],
-      // Sin reconexión: en una prueba, reconectar tapa el motivo del fallo.
+      
       reconnection: false,
       ...(opciones.clientType ? { query: { clientType: opciones.clientType } } : {}),
       ...(opciones.userAgent ? { extraHeaders: { "User-Agent": opciones.userAgent } } : {}),
@@ -131,10 +79,7 @@ function conectar(opciones: { userAgent?: string; clientType?: string } = {}): P
   });
 }
 
-/**
- * Intenta conectar un cliente que NO es la extensión y devuelve el motivo del
- * rechazo, o `null` si llegara a conectarse (lo que sería un fallo de seguridad).
- */
+
 function conectarEsperandoRechazo(userAgent: string): Promise<string | null> {
   return new Promise((resolver) => {
     const socket = crearCliente(urlBridge, {
@@ -153,16 +98,10 @@ function conectarEsperandoRechazo(userAgent: string): Promise<string | null> {
   });
 }
 
-/**
- * Respuesta automática de la extensión simulada.
- *
- * Es una variable (y no un `on` fijo) para que cada prueba pueda apagarla: sin
- * respuesta automática se puede comprobar qué pasa cuando llega un `tool_result`
- * que NO debe resolver nada (de otro socket, huérfano o repetido).
- */
+
 let responderAutomaticamente: ((toolCallId: string, toolName: string) => void) | null = null;
 
-/** Observa una promesa sin await (para comprobar que NO se resuelve). */
+
 function espiar(promesa: Promise<unknown>): {
   promesa: Promise<unknown>;
   resuelta: () => boolean;
@@ -179,13 +118,7 @@ function espiar(promesa: Promise<unknown>): {
   return { promesa, resuelta: () => estado.resuelta, valor: () => estado.valor };
 }
 
-/**
- * Texto legible de un error o de un valor cualquiera.
- *
- * `JSON.stringify(new Error(...))` NO sirve aquí: `message` no es enumerable, así
- * que saldría solo `{name, code, sugerencia}` y las aserciones sobre el mensaje se
- * leerían como un fallo inexistente.
- */
+
 function texto(valor: unknown): string {
   if (typeof valor === "string") return valor;
   if (valor instanceof Error) {
@@ -204,16 +137,16 @@ async function main(): Promise<void> {
   comprobar("El bridge queda activo escuchando", estadoInicial.activo, estadoInicial);
 
   if (!estadoInicial.activo) {
-    // Sin puente no hay nada que probar, y seguir daría ruido de errores en
-    // cadena. Se dice por qué y se sale.
+    
+    
     linea(
       "\n  El bridge no arrancó. Comprueba que MCP_BRIDGE_ENABLED no sea false en el .env del monorepo.\n",
     );
     process.exit(1);
   }
 
-  // Idempotencia: llamarlo dos veces no debe abrir un segundo servidor ni cambiar
-  // el puerto.
+  
+  
   await iniciarBridge({ puerto: 0 });
   comprobar(
     "iniciarBridge() dos veces es idempotente",
@@ -239,8 +172,8 @@ async function main(): Promise<void> {
     { esperado: extension.id, obtenido: estadoBridge().socketExtension },
   );
 
-  // La extensión simulada responde a `tool_call` solo mientras haya función en
-  // `responderAutomaticamente`.
+  
+  
   responderAutomaticamente = (toolCallId, toolName) => {
     extension.emit("tool_result", { tool_call_id: toolCallId, result: { success: true, eco: toolName } });
   };
@@ -269,8 +202,8 @@ async function main(): Promise<void> {
   comprobar("Tras resolver no queda nada pendiente", estadoBridge().peticionesPendientes === 0, estadoBridge());
 
   linea("\n=== 5. Un tool_result de otro socket se ignora ===");
-  // Segunda extensión (misma identidad Qt): conecta, pero NO sustituye a la
-  // registrada, que es la única autorizada a responder.
+  
+  
   const intruso = await conectar({ userAgent: "Qt/5.15 (intruso)" });
   comprobar(
     "Una segunda extensión conecta pero no sustituye a la registrada",
@@ -278,7 +211,7 @@ async function main(): Promise<void> {
     estadoBridge(),
   );
 
-  responderAutomaticamente = null; // nadie responde todavía
+  responderAutomaticamente = null; 
   const suspendida = solicitarTool("pingDevices", {});
   const espia = espiar(esperarResultado(suspendida.toolCallId));
   intruso.emit("tool_result", {
@@ -290,8 +223,8 @@ async function main(): Promise<void> {
     resuelta: espia.resuelta(),
   });
 
-  // La llamada sigue viva: si el mensaje del intruso la hubiera consumido (con el
-  // id por delante), esto ya no resolvería nunca. Ahora responde la extensión real.
+  
+  
   responderAutomaticamente = (toolCallId, toolName) => {
     extension.emit("tool_result", { tool_call_id: toolCallId, result: { success: true, eco: toolName } });
   };
@@ -324,7 +257,7 @@ async function main(): Promise<void> {
     { antes: antesHuerfano, despues: estadoBridge().peticionesPendientes },
   );
 
-  // Y una llamada nueva sigue funcionando tras el huérfano.
+  
   const trasHuerfano = solicitarTool("getNetwork", {});
   responderAutomaticamente = (toolCallId, toolName) => {
     extension.emit("tool_result", { tool_call_id: toolCallId, result: { success: true, eco: toolName } });
@@ -345,8 +278,8 @@ async function main(): Promise<void> {
   const suspendida2 = solicitarTool("exportWorkspace", {});
   const espia2 = espiar(esperarResultado(suspendida2.toolCallId));
 
-  // Reenvía el resultado de una llamada YA resuelta: si el puente no consumiera la
-  // entrada al entregar, ese id podría volver a "resolver" algo.
+  
+  
   extension.emit("tool_result", {
     tool_call_id: trasHuerfano.toolCallId,
     result: { success: true, eco: "getNetwork-REPETIDO" },
@@ -372,8 +305,8 @@ async function main(): Promise<void> {
   const enVuelo = esperarResultado(alDesconectar.toolCallId);
   extension.disconnect();
 
-  // Carrera contra un reloj: si la promesa no se resolviera, la prueba debe FALLAR
-  // en 2 s en vez de colgarse hasta el fin de los tiempos.
+  
+  
   const desenlace = await Promise.race([
     enVuelo.then(
       () => ({ ok: true, mensaje: "resolvió" }),
@@ -404,9 +337,9 @@ async function main(): Promise<void> {
     }
   })();
   comprobar("solicitarTool() falla rápido con un mensaje accionable", Boolean(fallo), { fallo });
-  // Con el puente parado, `estadoBridge().url` vuelve al puerto CONFIGURADO (ya no
-  // hay puerto real): el error debe apuntar a donde la extensión tendría que
-  // conectarse, que es lo que el modelo necesita para arreglarlo.
+  
+  
+  
   const urlAlParar = estadoBridge().url;
   comprobar("El mensaje menciona la URL del bridge del MCP", (fallo ?? "").includes(urlAlParar), {
     fallo,

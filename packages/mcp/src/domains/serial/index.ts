@@ -1,19 +1,4 @@
-/**
- * Dominio `@serial`: consolas de puerto serie (RS-232 / USB) contra equipos
- * reales, con detección automática de fabricante.
- *
- * QUÉ APORTA SOBRE LO QUE YA EXISTÍA
- * El servidor solo tenía `sendSerialCommand(providerId, command)`, que exige una
- * fila en su base de datos y no enumera puertos. Aquí se añade:
- *   - `serial_list_ports`: enumeración real del sistema (`SerialPort.list()`),
- *     que NO existía en ningún sitio del repo.
- *   - `serial_detect_vendor`: identificación del fabricante leyendo el prompt,
- *     para que el envío de comandos use la sintaxis correcta.
- *   - sesiones propias del MCP (sin depender de la UI web).
- *
- * SOBRE EL BAUDIOS: 9600 es el valor de consola de la inmensa mayoría de equipos
- * de red, así que es el defecto; se puede cambiar por parámetro.
- */
+
 import { z } from "zod";
 import type { ModuloDominio, DefinicionToolGenerica } from "@/core/ToolRegistry";
 import { definirTool } from "@/core/ToolRegistry";
@@ -23,27 +8,15 @@ import type { DeviceTransport } from "@/transports/DeviceTransport";
 import { prismaClient } from "@/prisma/lib/PrismaClient";
 import { Logger } from "@/utils/Logger";
 
-/**
- * Sesiones serie vivas, indexadas por clave de conexión.
- *
- * POR QUÉ SE CACHEAN: abrir un puerto serie es lento y, sobre todo, EXCLUSIVO
- * (un solo proceso puede tenerlo abierto). Si cada comando abriera y cerrara el
- * puerto, se perdería el banner de arranque entre llamadas y no se podría
- * detectar el fabricante una vez y reutilizarlo.
- */
+
 const sesiones = new Map<string, DeviceTransport>();
 
-/**
- * Clave estable de una conexión serie.
- */
+
 function claveSesion(puerto: string, baudRate: number): string {
   return `${puerto}@${baudRate}`;
 }
 
-/**
- * Obtiene (o abre) la sesión serie indicada.
- * Si hay una fila en la BD para ese puerto, se usa su `typeDevice` declarado.
- */
+
 async function obtenerSesion(
   puerto: string,
   baudRate: number,
@@ -63,12 +36,7 @@ async function obtenerSesion(
   return { transporte, typeDevice: await typeDeviceDePuerto(puerto) };
 }
 
-/**
- * Tipo de dispositivo declarado para ese puerto serie, si el usuario lo configuró.
- *
- * Nunca lanza: si la BD no está lista o no hay fila, se devuelve null y la
- * detección cae al prompt, que es el comportamiento deseado.
- */
+
 async function typeDeviceDePuerto(puerto: string): Promise<string | null> {
   try {
     const fila = await prismaClient.deviceProviderMcp.findFirst({
@@ -84,9 +52,7 @@ async function typeDeviceDePuerto(puerto: string): Promise<string | null> {
   }
 }
 
-/**
- * Cierra todas las sesiones serie (apagado ordenado y pruebas).
- */
+
 export async function cerrarSesionesSerie(): Promise<void> {
   for (const [clave, transporte] of sesiones) {
     try {
@@ -144,21 +110,21 @@ const herramientas: DefinicionToolGenerica[] = [
     handler: async ({ path: puerto, baudRate, enviarEnter }) => {
       const velocidad = baudRate ?? 9600;
       const { transporte, typeDevice } = await obtenerSesion(puerto, velocidad);
-      // Un Enter "despierta" muchas consolas que muestran el prompt solo tras
-      // recibir una pulsación.
+      
+      
       if (enviarEnter !== false) {
         await transporte.sendCommand("");
         await transporte.readOutput({ idleMs: 700, maxMs: 4000 });
       }
       const resultado = await ejecutarComandos(
         transporte,
-        [], // sin comandos: solo interesa la resolución de fabricante
+        [], 
         { typeDevice },
         { sinPreambulo: true },
       );
-      // Se persiste la detección para no repetirla en cada comando (la lectura
-      // del banner exige esperar, y un equipo recién arrancado puede no tener
-      // prompt todavía).
+      
+      
+      
       await guardarDeteccion(puerto, resultado.vendorId, resultado.prompt);
       return {
         success: true,
@@ -280,14 +246,7 @@ const herramientas: DefinicionToolGenerica[] = [
   }),
 ];
 
-/**
- * Persiste la detección de fabricante para reutilizarla.
- *
- * Es best-effort: si falla (BD no inicializada, fila ausente) no se rompe nada,
- * porque el fabricante se puede volver a detectar leyendo el prompt. Solo se
- * guarda cuando hay una fila de dispositivo para ese puerto, para no crear
- * registros fantasma.
- */
+
 async function guardarDeteccion(
   puerto: string,
   vendorId: string,

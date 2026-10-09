@@ -10,7 +10,7 @@
 
   <body>
     <header class="header">
-      <h1>Packet Tools Api v1.1.0</h1>
+      <h1>Packet Tools Plugin v1.2.3</h1>
       <span class="status-pill"
         ><span id="status-dot" class="dot connecting"></span
         ><span id="status-text">conectando</span></span
@@ -31,7 +31,11 @@
           </button>
         </div>
         <div class="row">
-          <span class="k">Backend local (7531)</span>
+          <span class="k"
+            ><span id="conn-backend" class="conn idle" title="Estado de la conexión"
+              >•</span
+            >API</span
+          >
           <span class="v-group">
             <input
               type="text"
@@ -52,7 +56,11 @@
           </span>
         </div>
         <div class="row">
-          <span class="k">MCP bridge (7532)</span>
+          <span class="k"
+            ><span id="conn-mcp" class="conn idle" title="Estado de la conexión"
+              >•</span
+            >MCP</span
+          >
           <span class="v-group">
             <input
               type="text"

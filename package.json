@@ -11,7 +11,9 @@
     "dev:mcp": "dotenv -e .env -- turbo dev --filter=@packet-tools/mcp",
     "init": "cp .example.env .env && npm install",
     "build": "dotenv -e .env -- turbo build",
+    "build:mcp": "npm run build --workspace=@packet-tools/mcp",
     "build-desktop": "node packages/desktop/scripts/build.mjs",
+    "prepublishOnly": "npm run build",
     "lint": "turbo lint",
     "migrate": "dotenv -e .env -- npm run migrate --workspace=@packet-tools/server",
     "generate": "dotenv -e .env -- npm run generate --workspace=@packet-tools/server",
@@ -30,6 +32,24 @@
   "author": "",
   "license": "MIT",
   "type": "module",
+  "bin": {
+    "packet-tools": "./bin/cli.mjs",
+    "packet-tools-mcp": "./bin/packet-tools-mcp.mjs"
+  },
+  "files": [
+    "bin",
+    "scripts/install-mcp.mjs",
+    "packages/mcp/dist",
+    "packages/mcp/src",
+    "packages/mcp/prisma",
+    "packages/mcp/skills",
+    "packages/mcp/scripts",
+    "packages/mcp/tsconfig.json",
+    "packages/mcp/prisma.config.ts",
+    "packages/mcp/package.json",
+    "LICENSE.md",
+    "README.md"
+  ],
   "devDependencies": {
     "dotenv-cli": "^11.0.0",
     "turbo": "^2.10.11"
@@ -39,7 +59,16 @@
   ],
   "dependencies": {
     "@langchain/core": "^1.2.12",
+    "@modelcontextprotocol/sdk": "^1.30.0",
+    "@prisma/adapter-better-sqlite3": "^7.8.0",
+    "@prisma/client": "^7.8.0",
+    "better-sqlite3": "^12.10.0",
     "deepagents": "^1.14.1",
-    "langchain": "^1.5.12"
+    "dotenv": "^17.4.2",
+    "langchain": "^1.5.12",
+    "serialport": "^13.0.0",
+    "socket.io": "^4.8.3",
+    "ssh2": "^1.17.0",
+    "zod": "^4.4.3"
   }
 }

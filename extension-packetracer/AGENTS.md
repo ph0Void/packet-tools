@@ -14,7 +14,7 @@ Native Cisco Packet Tracer extension (plain JavaScript, socket.io client) that e
 | `runcode.js` | `runCode(scriptText)`: runs JS text via `new Function`, returns `{success,result}` or a typed error (parse vs runtime, with `errorType`/`stack`/`code`) |
 | `devices.js` / `links.js` / `modules.js` | Lookup tables: model name → PT numeric device type, link name → link id, module name → slot/type id |
 | `userfunctions.js` | ~100 global ES5 functions the backend can call (`var` + `function`, always `{success:true\|false,…}`, every body in `try/catch`) |
-| `Plugin-PacketToolsAPIv1.0.8.pts` | Packaged plugin installed into Packet Tracer's `extensions` folder |
+| `Plugin-PacketToolsAPIv1.1.0.pts` | Packaged plugin installed into Packet Tracer's `extensions` folder |
 
 ## Connection
 

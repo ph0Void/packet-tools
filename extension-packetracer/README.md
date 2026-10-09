@@ -2,15 +2,18 @@
 
 ## SOBRE LA EXTENSIÓN
 
-- Extensión de Cisco Packet Tracer (`Plugin-PacketToolsAPIv1.0.8.pts`).
+- Extensión de Cisco Packet Tracer (`Plugin-PacketToolsAPIv1.1.0.pts`), versión de la interfaz **v1.2.3**.
 - La extensión es un cliente socket.io.
-- La extensión se conecta al backend en `http://127.0.0.1:7531` con reconexión automática.
-- Recibe el evento `tool_call` del backend, ejecuta la función en el motor de scripts de Packet Tracer y devuelve el resultado por `tool_result` (con cola de reentrega si se cae la conexión).
+- La extensión puede conectarse a **dos servidores a la vez**: el backend de Packet Tools (`http://127.0.0.1:7531`) y el puente del servidor MCP (`http://127.0.0.1:7532`), ambos con reconexión automática y en escucha silenciosa (no escribe errores mientras reintenta; solo registra en el log cuando la conexión se establece).
+- Recibe el evento `tool_call` del servidor conectado, ejecuta la función en el motor de scripts de Packet Tracer y devuelve el resultado por `tool_result` (con cola de reentrega si se cae la conexión).
 - Es necesario que esté abierta para el correcto funcionamiento de los agentes.
+- La ventana muestra un indicador junto a cada fila (`✓` verde conectado, `✗` rojo sin conectar, `•` ámbar conectando) para saber de un vistazo con quién está hablado.
+
+> La integración con el servidor MCP (puente `7532`) requiere la extensión **v1.1.0 o superior**.
 
 ## INSTALACIÓN
 
-1. Copia la carpeta `extension-packetracer/` (o instala `Plugin-PacketToolsAPIv1.0.8.pts`) dentro del directorio `extensions` de tu instalación de Cisco Packet Tracer y reinicia el programa.
+1. Copia la carpeta `extension-packetracer/` (o instala `Plugin-PacketToolsAPIv1.1.0.pts`) dentro del directorio `extensions` de tu instalación de Cisco Packet Tracer y reinicia el programa.
 2. Con el backend corriendo (`npm run dev`), abre **Extensions > Packet Tracer API**; se abrirá una ventana que muestra el estado de la conexión (`interface/index.html`).
 3. Desde el chat o el workspace de Packet Tools ya puedes pedirle al agente que cree topologías, añada dispositivos y simule tráfico.
 

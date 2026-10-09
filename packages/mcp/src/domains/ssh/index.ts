@@ -1,11 +1,4 @@
-/**
- * Dominio `@ssh`: sesiones SSH contra equipos reales.
- *
- * Es el hermano de `telnet_`: mismo motor (`transports/commandEngine.ts`),
- * cambiando solo el transporte. SSH es la vía recomendada en equipos modernos
- * porque cifra la sesión; Telnet solo debería usarse en equipos antiguos o en
- * laboratorios aislados.
- */
+
 import { z } from "zod";
 import type {
   ModuloDominio,
@@ -19,15 +12,15 @@ import {
 } from "@/transports/commandEngine";
 import type { DeviceTransport } from "@/transports/DeviceTransport";
 
-/** Sesiones SSH vivas, por `usuario@host:puerto`. */
+
 const sesiones = new Map<string, DeviceTransport>();
 
-/** Clave estable de una sesión SSH (incluye el usuario: cambia la sesión). */
+
 function claveSesion(host: string, puerto: number, username?: string): string {
   return `${username ?? "anon"}@${host}:${puerto}`;
 }
 
-/** Obtiene o abre la sesión indicada. */
+
 async function obtenerSesion(
   host: string,
   puerto: number,
@@ -50,7 +43,7 @@ async function obtenerSesion(
   return transporte;
 }
 
-/** Cierra todas las sesiones SSH (apagado ordenado y pruebas). */
+
 export async function cerrarSesionesSsh(): Promise<void> {
   for (const transporte of sesiones.values()) {
     await transporte.disconnect().catch(() => undefined);

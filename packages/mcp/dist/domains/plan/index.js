@@ -1,0 +1,393 @@
+"use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.moduloPlanes = void 0;
+const promises_1 = __importDefault(require("node:fs/promises"));
+const node_path_1 = __importDefault(require("node:path"));
+const zod_1 = require("zod");
+const ToolRegistry_1 = require("../../core/ToolRegistry.js");
+const EnvConfig_1 = require("../../config/EnvConfig.js");
+const PrismaClient_1 = require("../../prisma/lib/PrismaClient.js");
+const Logger_1 = require("../../utils/Logger.js");
+const errors_1 = require("../../core/errors.js");
+async function asegurarCarpetaPlanes() {
+    await promises_1.default.mkdir(EnvConfig_1.envConfig.MCP_PLANS_DIR, { recursive: true });
+    return EnvConfig_1.envConfig.MCP_PLANS_DIR;
+}
+function slugDelObjetivo(objetivo) {
+    const limpio = objetivo
+        .toLowerCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-+|-+$/g, "")
+        .slice(0, 48);
+    return limpio || "plan";
+}
+function marcaDeTiempo() {
+    return new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
+}
+function resolverRutaDePlan(rutaPedida) {
+    const absoluta = node_path_1.default.isAbsolute(rutaPedida)
+        ? rutaPedida
+        : node_path_1.default.join(EnvConfig_1.envConfig.MCP_PLANS_DIR, node_path_1.default.basename(rutaPedida));
+    const raizPlanes = node_path_1.default.resolve(EnvConfig_1.envConfig.MCP_PLANS_DIR);
+    const resuelta = node_path_1.default.resolve(absoluta);
+    if (resuelta !== raizPlanes && !resuelta.startsWith(raizPlanes + node_path_1.default.sep)) {
+        throw (0, errors_1.errorDeValidacion)(`La ruta '${rutaPedida}' queda fuera de la carpeta de planes.`, `Solo se pueden ejecutar planes de '${EnvConfig_1.envConfig.MCP_PLANS_DIR}'. Usa el nombre del archivo (por ejemplo 'plan-2026-01-01.md') o llama a plan_list sin argumentos para ver el último.`);
+    }
+    return resuelta;
+}
+function parsearChecklist(contenido) {
+    const pasos = [];
+    const lineas = contenido.split(/\r?\n/);
+    for (const linea of lineas) {
+        const coincidencia = /^\s*-\s*\[([ x!X])\]\s*(\d+)\.\s*(.+)$/.exec(linea);
+        if (!coincidencia)
+            continue;
+        const marca = coincidencia[1].toLowerCase();
+        const estado = marca === "x" ? "hecho" : marca === "!" ? "fallido" : "pendiente";
+        let texto = coincidencia[3].trim();
+        let error;
+        const separadorError = texto.lastIndexOf(" — error:");
+        if (separadorError !== -1) {
+            error = texto.slice(separadorError + " — error:".length).trim();
+            texto = texto.slice(0, separadorError).trim();
+        }
+        pasos.push({
+            numero: Number(coincidencia[2]),
+            estado,
+            texto,
+            error,
+            lineaOriginal: linea,
+        });
+    }
+    return pasos;
+}
+async function leerPlan(ruta) {
+    try {
+        return await promises_1.default.readFile(ruta, "utf8");
+    }
+    catch {
+        throw new errors_1.McpToolError("NO_ENCONTRADO", `No existe el archivo de plan '${ruta}'.`, {
+            sugerencia: "Llama a plan_list para ver los planes disponibles, o crea uno nuevo con plan_task.",
+        });
+    }
+}
+async function planMasReciente() {
+    const carpeta = await asegurarCarpetaPlanes();
+    const archivos = (await promises_1.default.readdir(carpeta))
+        .filter((nombre) => nombre.endsWith(".md"))
+        .sort()
+        .reverse();
+    if (archivos.length === 0) {
+        throw new errors_1.McpToolError("NO_ENCONTRADO", "Todavía no hay ningún plan guardado.", {
+            sugerencia: "Crea uno con plan_task indicando el objetivo (por ejemplo 'topología con 2 routers y 3 PCs con OSPF').",
+        });
+    }
+    const ruta = node_path_1.default.join(carpeta, archivos[0]);
+    return { ruta, contenido: await promises_1.default.readFile(ruta, "utf8") };
+}
+const herramientas = [
+    (0, ToolRegistry_1.definirTool)({
+        name: "plan_task",
+        description: "MODO PLANIFICACIÓN. NO ejecuta nada: razona y escribe un plan en markdown con un checklist de los pasos a seguir " +
+            "y lo guarda en disco. Úsala cuando el usuario escriba '@plan <objetivo>' o pida algo de varios pasos que convenga acordar antes. " +
+            "REGLAS: si falta información crítica (modelos de equipo, direccionamiento IP, nombres, protocolo de enrutamiento) NO la inventes: " +
+            "haz las preguntas al usuario ANTES de cerrar el plan. Si detectas algo ambiguo o destructivo (borrar el workspace, sobrescribir una configuración) " +
+            "señálalo explícitamente como riesgo en el plan. " +
+            "Pasa en 'steps' la lista ordenada de pasos; cada paso debe ser una llamada concreta a una herramienta con sus parámetros.",
+        inputSchema: {
+            objective: zod_1.z.string().describe("Objetivo tal cual lo pidió el usuario"),
+            steps: zod_1.z
+                .array(zod_1.z.string())
+                .min(1)
+                .describe("Pasos ordenados. Cada uno debe ser una llamada concreta, por ejemplo: \"packet_tracer_add_device(name=\\\"R1\\\", model=\\\"2911\\\", x=100, y=100)\""),
+            openQuestions: zod_1.z
+                .array(zod_1.z.string())
+                .optional()
+                .describe("Preguntas que hay que resolver con el usuario antes de ejecutar"),
+            risks: zod_1.z
+                .array(zod_1.z.string())
+                .optional()
+                .describe("Riesgos o acciones destructivas detectadas (borrados, sobreescrituras...)"),
+        },
+        handler: async ({ objective, steps, openQuestions, risks }) => {
+            const carpeta = await asegurarCarpetaPlanes();
+            const nombre = `plan-${marcaDeTiempo()}-${slugDelObjetivo(objective)}.md`;
+            const ruta = node_path_1.default.join(carpeta, nombre);
+            const markdown = construirMarkdownDePlan({
+                objective,
+                steps,
+                openQuestions: openQuestions ?? [],
+                risks: risks ?? [],
+                nombre,
+            });
+            await promises_1.default.writeFile(ruta, markdown, "utf8");
+            const registro = await PrismaClient_1.prismaClient.planRecordMcp.create({
+                data: {
+                    objective,
+                    filePath: nombre,
+                    status: "PENDING",
+                    totalSteps: steps.length,
+                },
+            });
+            Logger_1.Logger.info(`Plan creado: ${nombre} (${steps.length} pasos).`);
+            return {
+                success: true,
+                planId: registro.id,
+                archivo: ruta,
+                pasos: steps.length,
+                pendienteDeConfirmacion: (openQuestions?.length ?? 0) > 0,
+                markdown,
+                mensaje: (openQuestions?.length ?? 0) > 0
+                    ? "Plan guardado, pero hay preguntas sin resolver: HAZLAS al usuario antes de pasar a la ejecución. Cuando las responda, vuelve a llamar a plan_task con el plan completo."
+                    : "Plan guardado. Muéstralo al usuario y espera su confirmación antes de ejecutarlo con plan_execute.",
+            };
+        },
+    }),
+    (0, ToolRegistry_1.definirTool)({
+        name: "plan_execute",
+        description: "MODO EJECUCIÓN. Lee un plan guardado y devuelve sus pasos PENDIENTES en orden, para que los ejecutes tú llamando a las herramientas correspondientes. " +
+            "Úsala cuando el usuario escriba '@execute'. Sin argumentos usa el plan más reciente de la sesión. " +
+            "IMPORTANTE: tras cada paso, llama a plan_mark_step con el resultado. Si un paso FALLA, detente y pregunta al usuario si reintentar, " +
+            "saltar el paso o abortar: nunca repitas el mismo comando en bucle sin cambiar nada. " +
+            "Esto NO ejecuta las herramientas por sí sola: es el servidor dándote el guion y el estado real del plan.",
+        inputSchema: {
+            planPath: zod_1.z
+                .string()
+                .optional()
+                .describe("Nombre o ruta del plan a ejecutar; omítelo para usar el más reciente"),
+        },
+        handler: async ({ planPath }) => {
+            const { ruta, contenido } = planPath
+                ? { ruta: resolverRutaDePlan(planPath), contenido: await leerPlan(resolverRutaDePlan(planPath)) }
+                : await planMasReciente();
+            const pasos = parsearChecklist(contenido);
+            if (pasos.length === 0) {
+                return {
+                    success: false,
+                    archivo: ruta,
+                    error: "El plan no contiene ningún paso reconocible. Se esperan líneas con el formato '- [ ] 1. acción'.",
+                    sugerencia: "Crea el plan con plan_task, que genera ese formato automáticamente.",
+                };
+            }
+            const pendientes = pasos.filter((paso) => paso.estado === "pendiente");
+            const fallidos = pasos.filter((paso) => paso.estado === "fallido");
+            const hechos = pasos.filter((paso) => paso.estado === "hecho");
+            if (pendientes.length > 0) {
+                await PrismaClient_1.prismaClient.planRecordMcp
+                    .updateMany({
+                    where: { filePath: node_path_1.default.basename(ruta) },
+                    data: {
+                        status: pendientes.length === pasos.length ? "RUNNING" : "RUNNING",
+                        completedSteps: hechos.length,
+                        failedSteps: fallidos.length,
+                    },
+                })
+                    .catch(() => undefined);
+            }
+            return {
+                success: true,
+                archivo: ruta,
+                planPath: node_path_1.default.basename(ruta),
+                resumen: {
+                    total: pasos.length,
+                    hechos: hechos.length,
+                    fallidos: fallidos.length,
+                    pendientes: pendientes.length,
+                },
+                pasosPendientes: pendientes.map((paso) => ({
+                    numero: paso.numero,
+                    accion: paso.texto,
+                })),
+                ...(fallidos.length > 0
+                    ? {
+                        pasosFallidos: fallidos.map((paso) => ({
+                            numero: paso.numero,
+                            accion: paso.texto,
+                            error: paso.error ?? "(sin detalle)",
+                        })),
+                        aviso: "Hay pasos que fallaron en una ejecución anterior. Pregunta al usuario si quiere reintentarlos, saltarlos o abortar antes de continuar.",
+                    }
+                    : {}),
+                instrucciones: pendientes.length === 0
+                    ? "No quedan pasos pendientes: el plan está terminado. Comprueba el estado real con las herramientas de lectura antes de dar el trabajo por bueno."
+                    : "Ejecuta los pasos PENDIENTES en orden. Después de cada uno, llama a plan_mark_step indicando el número de paso y si tuvo éxito. " +
+                        "Si un paso falla, PARA y pregunta al usuario: no reintentes el mismo comando sin cambiar nada.",
+            };
+        },
+    }),
+    (0, ToolRegistry_1.definirTool)({
+        name: "plan_mark_step",
+        description: "Marca un paso del plan como completado o fallido, reescribiendo el checklist en el mismo archivo markdown. " +
+            "Deja un registro auditable de qué se hizo. Llámala después de CADA paso de plan_execute.",
+        inputSchema: {
+            planPath: zod_1.z.string().describe("Nombre del plan (el campo 'planPath' que devolvió plan_execute)"),
+            step: zod_1.z.number().int().positive().describe("Número del paso, tal como aparece en el plan"),
+            success: zod_1.z.boolean().describe("true si el paso salió bien; false si falló"),
+            error: zod_1.z.string().optional().describe("Mensaje de error, obligatorio si success es false"),
+            notes: zod_1.z.string().optional().describe("Nota adicional que se añade al paso"),
+        },
+        handler: async ({ planPath, step, success, error, notes }) => {
+            const ruta = resolverRutaDePlan(planPath);
+            let contenido = await leerPlan(ruta);
+            const pasos = parsearChecklist(contenido);
+            const objetivo = pasos.find((paso) => paso.numero === step);
+            if (!objetivo) {
+                throw new errors_1.McpToolError("NO_ENCONTRADO", `El plan no tiene ningún paso con el número ${step}.`, {
+                    sugerencia: `Los pasos del plan son: ${pasos.map((p) => p.numero).join(", ")}. Usa uno de esos números.`,
+                });
+            }
+            if (!success && !error?.trim()) {
+                throw (0, errors_1.errorDeValidacion)("Se marcó el paso como fallido pero no se indicó el mensaje de error.", "Repite la llamada con el parámetro 'error' explicando qué falló: es lo que queda registrado en el plan.");
+            }
+            const marca = success ? "x" : "!";
+            const sufijo = [
+                error?.trim() ? ` — error: ${error.trim()}` : "",
+                notes?.trim() ? ` — nota: ${notes.trim()}` : "",
+            ].join("");
+            const lineaNueva = `- [${marca}] ${step}. ${objetivo.texto}${sufijo}`;
+            contenido = contenido
+                .split(/\r?\n/)
+                .map((linea) => {
+                const coincidencia = /^\s*-\s*\[[ x!X]\]\s*(\d+)\./.exec(linea);
+                return coincidencia && Number(coincidencia[1]) === step ? lineaNueva : linea;
+            })
+                .join("\n");
+            await promises_1.default.writeFile(ruta, contenido, "utf8");
+            const actualizados = parsearChecklist(contenido);
+            const hechos = actualizados.filter((p) => p.estado === "hecho").length;
+            const fallidos = actualizados.filter((p) => p.estado === "fallido").length;
+            const pendientes = actualizados.filter((p) => p.estado === "pendiente").length;
+            const todoHecho = pendientes === 0 && fallidos === 0;
+            const hayFallo = fallidos > 0;
+            await PrismaClient_1.prismaClient.planRecordMcp
+                .updateMany({
+                where: { filePath: node_path_1.default.basename(ruta) },
+                data: {
+                    status: todoHecho ? "DONE" : hayFallo ? "FAILED" : "RUNNING",
+                    completedSteps: hechos,
+                    failedSteps: fallidos,
+                    lastError: error?.trim() || null,
+                },
+            })
+                .catch(() => undefined);
+            return {
+                success: true,
+                archivo: ruta,
+                paso: step,
+                estado: success ? "hecho" : "fallido",
+                progreso: { total: actualizados.length, hechos, fallidos, pendientes },
+                mensaje: todoHecho
+                    ? "Todos los pasos del plan están completados."
+                    : hayFallo
+                        ? "Hay pasos fallidos en el plan. Pregunta al usuario si reintentar, saltar o abortar."
+                        : `Quedan ${pendientes} paso(s) pendiente(s): continúa con el siguiente.`,
+            };
+        },
+    }),
+    (0, ToolRegistry_1.definirTool)({
+        name: "plan_list",
+        description: "Lista los planes guardados y sus pasos. Sin argumentos devuelve el plan más reciente con su checklist; " +
+            "con 'all' en true, el resumen de todos. Úsala para retomar un plan anterior o para mostrar el estado al usuario.",
+        inputSchema: {
+            all: zod_1.z.boolean().optional().describe("true para devolver el resumen de todos los planes, no solo el último"),
+            planPath: zod_1.z.string().optional().describe("Nombre de un plan concreto a mostrar"),
+        },
+        handler: async ({ all, planPath }) => {
+            if (planPath) {
+                const ruta = resolverRutaDePlan(planPath);
+                const contenido = await leerPlan(ruta);
+                return {
+                    success: true,
+                    archivo: ruta,
+                    pasos: parsearChecklist(contenido).map((p) => ({
+                        numero: p.numero,
+                        estado: p.estado,
+                        accion: p.texto,
+                        ...(p.error ? { error: p.error } : {}),
+                    })),
+                    markdown: contenido,
+                };
+            }
+            const carpeta = await asegurarCarpetaPlanes();
+            if (all) {
+                const archivos = (await promises_1.default.readdir(carpeta)).filter((n) => n.endsWith(".md")).sort().reverse();
+                const resumenes = await Promise.all(archivos.map(async (nombre) => {
+                    const contenido = await promises_1.default.readFile(node_path_1.default.join(carpeta, nombre), "utf8");
+                    const pasos = parsearChecklist(contenido);
+                    return {
+                        archivo: nombre,
+                        total: pasos.length,
+                        hechos: pasos.filter((p) => p.estado === "hecho").length,
+                        fallidos: pasos.filter((p) => p.estado === "fallido").length,
+                        pendientes: pasos.filter((p) => p.estado === "pendiente").length,
+                    };
+                }));
+                return { success: true, total: resumenes.length, planes: resumenes };
+            }
+            const { ruta, contenido } = await planMasReciente();
+            return {
+                success: true,
+                archivo: ruta,
+                pasos: parsearChecklist(contenido).map((p) => ({
+                    numero: p.numero,
+                    estado: p.estado,
+                    accion: p.texto,
+                    ...(p.error ? { error: p.error } : {}),
+                })),
+                markdown: contenido,
+            };
+        },
+    }),
+];
+function construirMarkdownDePlan(args) {
+    const lineas = [];
+    lineas.push(`# Plan: ${args.objective}`);
+    lineas.push("");
+    lineas.push(`- **Archivo**: \`${args.nombre}\``);
+    lineas.push(`- **Creado**: ${new Date().toISOString()}`);
+    lineas.push(`- **Pasos**: ${args.steps.length}`);
+    lineas.push("");
+    if (args.openQuestions.length > 0) {
+        lineas.push("## Preguntas pendientes (RESPONDER ANTES DE EJECUTAR)");
+        lineas.push("");
+        lineas.push("> Hay información crítica sin resolver. No ejecutes el plan hasta que el usuario responda.");
+        lineas.push("");
+        for (const pregunta of args.openQuestions) {
+            lineas.push(`- ${pregunta}`);
+        }
+        lineas.push("");
+    }
+    if (args.risks.length > 0) {
+        lineas.push("## Riesgos detectados");
+        lineas.push("");
+        lineas.push("> Estas acciones son destructivas o ambiguas. Confírmalas con el usuario.");
+        lineas.push("");
+        for (const riesgo of args.risks) {
+            lineas.push(`- ⚠️ ${riesgo}`);
+        }
+        lineas.push("");
+    }
+    lineas.push("## Pasos");
+    lineas.push("");
+    args.steps.forEach((paso, indice) => {
+        lineas.push(`- [ ] ${indice + 1}. ${paso}`);
+    });
+    lineas.push("");
+    lineas.push("---");
+    lineas.push("");
+    lineas.push("_Las casillas las marca `plan_mark_step`: `[x]` completado, `[!]` fallido con su error._");
+    lineas.push("");
+    return lineas.join("\n");
+}
+exports.moduloPlanes = {
+    id: "plan",
+    prefix: "plan_",
+    description: "Planificación y ejecución de tareas de varios pasos: crear un plan en markdown con checklist, ejecutarlo paso a paso y dejar registro auditable.",
+    tools: herramientas,
+};
+//# sourceMappingURL=index.js.map

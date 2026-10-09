@@ -1,16 +1,4 @@
-/**
- * Dominio `@gns3`: proyectos, nodos, enlaces y snapshots del servidor GNS3.
- *
- * PROCEDENCIA: las operaciones y sus rutas salen de
- * `packages/server/src/client/Gns3Client.ts`, que es la implementación probada
- * contra el API real. Aquí solo cambia de dónde salen las credenciales (la BD
- * propia del MCP) y se añade el prefijo `gns3_` a los nombres.
- *
- * CONCEPTO IMPORTANTE: casi todas las operaciones necesitan un `projectId`. Para
- * no obligar al modelo a recordarlo en cada llamada, se guarda el proyecto
- * activo en memoria: al abrir o crear uno, pasa a ser el de por defecto. Aun así
- * todas las herramientas aceptan `projectId` explícito.
- */
+
 import { z } from "zod";
 import type { ModuloDominio, DefinicionToolGenerica } from "@/core/ToolRegistry";
 import { definirTool } from "@/core/ToolRegistry";
@@ -19,26 +7,17 @@ import { Logger } from "@/utils/Logger";
 import { McpToolError } from "@/core/errors";
 import { prismaClient } from "@/prisma/lib/PrismaClient";
 
-/**
- * Proyecto activo, por servidor.
- *
- * Se indexa por proveedor (o por URL cuando no hay fila) para que trabajar con
- * dos servidores GNS3 a la vez no haga que uno herede el proyecto del otro.
- */
+
 const proyectosActivos = new Map<string, string>();
 
-/**
- * Clave del proyecto activo para un proveedor dado.
- */
+
 async function claveProyecto(providerId?: string | null): Promise<string> {
   if (providerId?.trim()) return providerId.trim();
   const credenciales = await resolverCredencialesGns3(null);
   return credenciales.baseUrl;
 }
 
-/**
- * Recuerda el proyecto activo.
- */
+
 async function recordarProyecto(
   providerId: string | null | undefined,
   projectId: string,
@@ -46,11 +25,7 @@ async function recordarProyecto(
   proyectosActivos.set(await claveProyecto(providerId), projectId);
 }
 
-/**
- * Resuelve el proyecto objetivo: el explícito manda; si no, el activo.
- * Si no hay ninguno, se lanza un error que le dice al modelo exactamente qué
- * hacer (listar y abrir), en vez de un "falta projectId" seco.
- */
+
 async function resolverProyecto(
   providerId: string | null | undefined,
   projectId?: string,
@@ -69,15 +44,7 @@ async function resolverProyecto(
   );
 }
 
-/**
- * Resuelve un nodo por id o por nombre.
- *
- * POR QUÉ POR NOMBRE: el modelo casi nunca conoce el `node_id` (es un UUID),
- * pero sí el nombre que puso el usuario ("R1", "SW1"). Se acepta coincidencia
- * exacta sin distinguir mayúsculas y, si no hay, parcial; ante AMBIGÜEDAD se
- * rechaza y se listan los candidatos, porque elegir uno al azar en un equipo de
- * red es peor que preguntar.
- */
+
 async function resolverNodo(
   cliente: Awaited<ReturnType<typeof crearClienteGns3>>,
   projectId: string,
@@ -129,26 +96,22 @@ async function resolverNodo(
   return candidatos[0];
 }
 
-/**
- * Argumento común: servidor GNS3 concreto (opcional).
- */
+
 const argProviderId = z
   .string()
   .optional()
   .describe("Id del dispositivo GNS3 configurado en el MCP; omítelo si solo tienes uno");
 
-/**
- * Argumento común: proyecto (opcional si ya hay uno activo).
- */
+
 const argProjectId = z
   .string()
   .optional()
   .describe("Id del proyecto GNS3; omítelo para usar el proyecto activo");
 
 const herramientas: DefinicionToolGenerica[] = [
-  // -------------------------------------------------------------------------
-  // Servidor y proyectos
-  // -------------------------------------------------------------------------
+  
+  
+  
   definirTool({
     name: "gns3_list_configured_servers",
     description:
@@ -197,8 +160,8 @@ const herramientas: DefinicionToolGenerica[] = [
         };
       } catch (error) {
         if (error instanceof McpToolError) {
-          // Se devuelve en vez de lanzar: esta herramienta EXISTE para informar
-          // del estado de la conexión, así que "no conecta" es un resultado.
+          
+          
           return {
             success: false,
             conectado: false,
@@ -340,8 +303,8 @@ const herramientas: DefinicionToolGenerica[] = [
     inputSchema: { providerId: argProviderId },
     handler: async ({ providerId }) => {
       const cliente = await crearClienteGns3(providerId);
-      // El endpoint de recursos es del COMPUTE (el que ejecuta las máquinas),
-      // no del controlador: se toma el primero disponible.
+      
+      
       const computos = ((await cliente.get("/computes")) ?? []) as Array<Record<string, unknown>>;
       const computeId = String(computos[0]?.compute_id ?? "local");
       return {
@@ -352,9 +315,9 @@ const herramientas: DefinicionToolGenerica[] = [
     },
   }),
 
-  // -------------------------------------------------------------------------
-  // Nodos
-  // -------------------------------------------------------------------------
+  
+  
+  
   definirTool({
     name: "gns3_list_nodes",
     description:
@@ -488,9 +451,9 @@ const herramientas: DefinicionToolGenerica[] = [
     },
   }),
 
-  // -------------------------------------------------------------------------
-  // Enlaces
-  // -------------------------------------------------------------------------
+  
+  
+  
   definirTool({
     name: "gns3_list_links",
     description: "Lista los enlaces (cables) de un proyecto GNS3, con los nodos y adaptadores que conectan.",
@@ -612,9 +575,9 @@ const herramientas: DefinicionToolGenerica[] = [
       return {
         success: true,
         bytes: buffer.length,
-        // No se devuelve el binario en base64: inflaría la respuesta y el modelo
-        // no puede hacer nada útil con un pcap en texto. El archivo está en el
-        // servidor GNS3, que es donde hay que abrirlo con Wireshark.
+        
+        
+        
         mensaje:
           buffer.length > 0
             ? `Captura obtenida (${buffer.length} bytes). El archivo pcap está en el servidor GNS3; ábrelo allí con Wireshark.`
@@ -623,9 +586,9 @@ const herramientas: DefinicionToolGenerica[] = [
     },
   }),
 
-  // -------------------------------------------------------------------------
-  // Snapshots
-  // -------------------------------------------------------------------------
+  
+  
+  
   definirTool({
     name: "gns3_list_snapshots",
     description: "Lista los snapshots (puntos de restauración) de un proyecto GNS3.",
@@ -689,9 +652,9 @@ const herramientas: DefinicionToolGenerica[] = [
     },
   }),
 
-  // -------------------------------------------------------------------------
-  // Plantillas (escritura)
-  // -------------------------------------------------------------------------
+  
+  
+  
   definirTool({
     name: "gns3_get_template",
     description: "Devuelve el detalle de una plantilla GNS3 (imagen, adaptadores, RAM, consola...).",
@@ -772,8 +735,8 @@ const herramientas: DefinicionToolGenerica[] = [
     handler: async ({ templateId, name, providerId }) => {
       const cliente = await crearClienteGns3(providerId);
       const original = (await cliente.get(`/templates/${templateId}`)) as Record<string, unknown>;
-      // Se copia la original quitando los campos que asigna el servidor: mandar
-      // el `template_id` viejo haría que GNS3 rechazara la creación.
+      
+      
       const { template_id: _ignorado, ...resto } = original ?? {};
       void _ignorado;
       return {
@@ -783,9 +746,9 @@ const herramientas: DefinicionToolGenerica[] = [
     },
   }),
 
-  // -------------------------------------------------------------------------
-  // Utilidades de proyecto
-  // -------------------------------------------------------------------------
+  
+  
+  
   definirTool({
     name: "gns3_export_project",
     description:
@@ -839,7 +802,7 @@ const herramientas: DefinicionToolGenerica[] = [
       try {
         return { success: true, resultado: await cliente.post(`/projects/${id}/auto_layout`) };
       } catch (error) {
-        // El endpoint de auto-layout no existe en todas las versiones de GNS3.
+        
         Logger.debug("GNS3 no soporta auto_layout en esta versión.", {
           error: String(error),
         });

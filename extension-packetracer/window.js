@@ -7,10 +7,10 @@ htmlWindow.prototype.cleanUp = function () {
 htmlWindow.prototype.show = function () {
   if (webViewManager.getWebView(this.webviewId) == null) {
     this.webview = webViewManager.createWebView(
-      "Packet Tracer API",
+      "Packet Tools plugin",
       "this-sm:index.html",
       900,
-      600
+      600,
     );
     this.webviewId = this.webview.getWebViewId();
     this.webview.registerEvent("closed", this, this.windowClosed);
@@ -18,7 +18,7 @@ htmlWindow.prototype.show = function () {
     this.webview.setMinimumHeight(300);
   }
 
-  // hide()/show()  
+  // hide()/show()
   this.webview.hide();
   this.webview.show();
 };

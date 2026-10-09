@@ -1,26 +1,4 @@
-/**
- * Dominio `@plan` / `@execute`: planificación y ejecución de tareas de red.
- *
- * POR QUÉ SON TOOLS Y NO "COMANDOS"
- * Un servidor MCP sobre stdio solo puede exponer `tools`, `resources` y
- * `prompts`; no existe un canal para que el usuario escriba `@plan` y el
- * servidor lo intercepte (eso lo decide el cliente). Así que `@plan` y `@execute`
- * se implementan como dos tools que el modelo invoca, y el cliente los activa
- * cuando el usuario escribe esa mención.
- *
- * EL FLUJO QUE HABILITAN
- *   1. `plan_task`: el modelo razona qué herramientas harían falta, en qué orden
- *      y con qué parámetros, y deja un checklist en markdown EN DISCO.
- *   2. El usuario revisa y edita ese markdown.
- *   3. `plan_execute`: se parsea el checklist y se ejecutan los pasos.
- *
- * SOBRE `plan_execute` Y LA SEGURIDAD: esta tool NO ejecuta las herramientas por
- * su cuenta. Devuelve al modelo el plan parseado, paso a paso, para que sea él
- * quien llame a cada herramienta y marque el progreso con `plan_mark_step`.
- * Se hace así por dos razones: (a) el servidor MCP no tiene forma de invocar sus
- * propias tools sin pasar por el cliente, y (b) así el modelo ve el resultado de
- * cada paso y puede parar ante un error, que es exactamente lo que se pide.
- */
+
 import fs from "node:fs/promises";
 import path from "node:path";
 import { z } from "zod";
@@ -31,42 +9,35 @@ import { prismaClient } from "@/prisma/lib/PrismaClient";
 import { Logger } from "@/utils/Logger";
 import { McpToolError, errorDeValidacion } from "@/core/errors";
 
-/** Estado de un paso del checklist. */
+
 type EstadoPaso = "pendiente" | "hecho" | "fallido";
 
-/** Un paso del checklist. */
+
 interface PasoPlan {
-  /** Número del paso, tal como aparece en el markdown. */
+  
   numero: number;
-  /** Estado según la casilla. */
+  
   estado: EstadoPaso;
-  /** Texto de la acción (por ejemplo `packet_tracer_add_device(...)`). */
+  
   texto: string;
-  /** Mensaje de error, cuando el paso falló. */
+  
   error?: string;
-  /** Línea original del markdown (para reescribirla sin perder formato). */
+  
   lineaOriginal: string;
 }
 
-/**
- * Asegura que el directorio de planes existe y devuelve su ruta.
- */
+
 async function asegurarCarpetaPlanes(): Promise<string> {
   await fs.mkdir(envConfig.MCP_PLANS_DIR, { recursive: true });
   return envConfig.MCP_PLANS_DIR;
 }
 
-/**
- * Convierte el objetivo en un nombre de archivo seguro.
- *
- * Solo se usan letras, números y guiones: un objetivo con `/` o `..` no puede
- * escapar de la carpeta de planes.
- */
+
 function slugDelObjetivo(objetivo: string): string {
   const limpio = objetivo
     .toLowerCase()
     .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "") // quita acentos
+    .replace(/[\u0300-\u036f]/g, "") 
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "")
     .slice(0, 48);
@@ -74,21 +45,12 @@ function slugDelObjetivo(objetivo: string): string {
   return limpio || "plan";
 }
 
-/**
- * Marca de tiempo legible y ordenable para el nombre del archivo.
- */
+
 function marcaDeTiempo(): string {
   return new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
 }
 
-/**
- * Resuelve la ruta de un plan y COMPRUEBA que está dentro de la carpeta de planes.
- *
- * Es una defensa deliberada: el modelo podría pedir `plan_execute` con
- * `../../.env` y leer un archivo que no le corresponde. La comprobación es sobre
- * la ruta YA resuelta (no sobre el texto), que es la única forma fiable de
- * detectar un escape.
- */
+
 function resolverRutaDePlan(rutaPedida: string): string {
   const absoluta = path.isAbsolute(rutaPedida)
     ? rutaPedida
@@ -106,14 +68,7 @@ function resolverRutaDePlan(rutaPedida: string): string {
   return resuelta;
 }
 
-/**
- * Parsea el checklist de un markdown de plan.
- *
- * Reconoce las tres formas de casilla que escribe este servidor:
- *   - `- [ ] 1. acción`  → pendiente
- *   - `- [x] 1. acción`  → hecha
- *   - `- [!] 1. acción`  → fallida (con el error al final, tras `error:`)
- */
+
 function parsearChecklist(contenido: string): PasoPlan[] {
   const pasos: PasoPlan[] = [];
   const lineas = contenido.split(/\r?\n/);
@@ -127,7 +82,7 @@ function parsearChecklist(contenido: string): PasoPlan[] {
     let texto = coincidencia[3].trim();
     let error: string | undefined;
 
-    // El error se anota al final de la misma línea, tras 'error:'.
+    
     const separadorError = texto.lastIndexOf(" — error:");
     if (separadorError !== -1) {
       error = texto.slice(separadorError + " — error:".length).trim();
@@ -146,9 +101,7 @@ function parsearChecklist(contenido: string): PasoPlan[] {
   return pasos;
 }
 
-/**
- * Lee un plan de disco.
- */
+
 async function leerPlan(ruta: string): Promise<string> {
   try {
     return await fs.readFile(ruta, "utf8");
@@ -160,9 +113,7 @@ async function leerPlan(ruta: string): Promise<string> {
   }
 }
 
-/**
- * Devuelve el plan más reciente de la carpeta.
- */
+
 async function planMasReciente(): Promise<{ ruta: string; contenido: string }> {
   const carpeta = await asegurarCarpetaPlanes();
   const archivos = (await fs.readdir(carpeta))
@@ -182,9 +133,9 @@ async function planMasReciente(): Promise<{ ruta: string; contenido: string }> {
   return { ruta, contenido: await fs.readFile(ruta, "utf8") };
 }
 
-// ---------------------------------------------------------------------------
-// Herramientas
-// ---------------------------------------------------------------------------
+
+
+
 
 const herramientas: DefinicionToolGenerica[] = [
   definirTool({
@@ -227,8 +178,8 @@ const herramientas: DefinicionToolGenerica[] = [
 
       await fs.writeFile(ruta, markdown, "utf8");
 
-      // Se registra en la BD propia para poder encontrar "el último plan" sin
-      // listar y parsear todo el directorio.
+      
+      
       const registro = await prismaClient.planRecordMcp.create({
         data: {
           objective,
@@ -288,8 +239,8 @@ const herramientas: DefinicionToolGenerica[] = [
       const fallidos = pasos.filter((paso) => paso.estado === "fallido");
       const hechos = pasos.filter((paso) => paso.estado === "hecho");
 
-      // Actualiza el estado del plan en la BD (best-effort: si falla, el
-      // markdown sigue siendo la fuente de verdad).
+      
+      
       if (pendientes.length > 0) {
         await prismaClient.planRecordMcp
           .updateMany({
@@ -371,8 +322,8 @@ const herramientas: DefinicionToolGenerica[] = [
         );
       }
 
-      // Se reescribe SOLO la línea del paso, para no tocar el resto del markdown
-      // (el modelo o el usuario pueden haber añadido notas propias).
+      
+      
       const marca = success ? "x" : "!";
       const sufijo = [
         error?.trim() ? ` — error: ${error.trim()}` : "",
@@ -380,8 +331,8 @@ const herramientas: DefinicionToolGenerica[] = [
       ].join("");
       const lineaNueva = `- [${marca}] ${step}. ${objetivo.texto}${sufijo}`;
 
-      // Se comparan por número de paso y no por texto: el usuario puede haber
-      // editado la redacción del paso a mano.
+      
+      
       contenido = contenido
         .split(/\r?\n/)
         .map((linea) => {
@@ -393,7 +344,7 @@ const herramientas: DefinicionToolGenerica[] = [
 
       await fs.writeFile(ruta, contenido, "utf8");
 
-      // Estado agregado, para el registro de la BD.
+      
       const actualizados = parsearChecklist(contenido);
       const hechos = actualizados.filter((p) => p.estado === "hecho").length;
       const fallidos = actualizados.filter((p) => p.estado === "fallido").length;
@@ -493,9 +444,7 @@ const herramientas: DefinicionToolGenerica[] = [
   }),
 ];
 
-/**
- * Construye el markdown del plan con su checklist.
- */
+
 function construirMarkdownDePlan(args: {
   objective: string;
   steps: string[];
