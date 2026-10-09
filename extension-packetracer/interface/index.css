@@ -9,6 +9,8 @@
       --green: #22c55e;
       --yellow: #f59e0b;
       --red: #ef4444;
+      --blue: #2563eb;
+      --violet: #7c3aed;
       --code-bg: #f3f2f0;
       --mono: 'Consolas', 'JetBrains Mono', monospace;
       --font: 'Segoe UI', system-ui, sans-serif;
@@ -86,6 +88,20 @@
     .row .v { font-family: var(--mono); color: var(--text); }
     .v-group { display: inline-flex; align-items: center; gap: 8px; min-width: 0; }
     .v-group .v { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    /* Los dos inputs de URL: mismo ancho para que las filas cuadren. */
+    .url-input {
+      flex: 1 1 150px;
+      min-width: 70px;
+      max-width: 280px;
+      padding: 3px 7px;
+      border: 1px solid var(--border);
+      border-radius: 7px;
+      background: var(--surface);
+      font-size: 11px;
+      line-height: 1.5;
+    }
+    .url-input:focus { outline: none; border-color: var(--text-3); }
+    .url-input:focus-visible { outline: 2px solid var(--blue); outline-offset: 1px; }
 
     .btn {
       font-family: var(--font);
@@ -107,6 +123,9 @@
     .btn.btn-ok   { color: #15803d; border-color: #bbf7d0; background: #f0fdf4; }
     .btn.btn-err  { color: #b91c1c; border-color: #fecaca; background: #fef2f2; }
 
+    /* `white-space: pre` para que las columnas de la etiqueta de puente cuadren
+       (la etiqueta se rellena con espacios en interface.js). Las lineas largas
+       no se parten: el contenedor hace scroll horizontal. */
     .log {
       flex: 1;
       min-height: 0;
@@ -118,13 +137,19 @@
       font-size: 11px;
       color: var(--text-2);
       overflow-y: auto;
-      white-space: pre-wrap;
-      word-break: break-word;
+      overflow-x: auto;
+      white-space: pre;
     }
     .log .line { padding: 1px 0; }
     .log .line.err { color: var(--red); }
     .log .line.ok  { color: var(--green); }
     .log .ts { color: var(--text-3); }
+    /* Etiqueta de puente: un color por servidor, para leer de un vistazo que
+       linea es de quien incluso cuando el mensaje va en rojo o en verde. */
+    .log .pt           { color: var(--text-3); }
+    .log .pt.backend   { color: var(--blue); }
+    .log .pt.mcp       { color: var(--violet); }
+    .log .pt.ui        { color: var(--text-2); font-style: italic; }
 
     .footer {
       padding: 8px 18px;

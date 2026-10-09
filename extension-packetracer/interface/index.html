@@ -10,7 +10,7 @@
 
   <body>
     <header class="header">
-      <h1>Packet Tools Api v1.0.8</h1>
+      <h1>Packet Tools Api v1.1.0</h1>
       <span class="status-pill"
         ><span id="status-dot" class="dot connecting"></span
         ><span id="status-text">conectando</span></span
@@ -19,23 +19,66 @@
 
     <main class="body">
       <section class="card">
-        <h2>Resumen</h2>
+        <div class="card-head">
+          <h2>Resumen</h2>
+          <button
+            type="button"
+            id="connect-url"
+            class="btn"
+            title="Guardar las dos URLs y reconectar los dos puentes a la vez"
+          >
+            Conectar
+          </button>
+        </div>
         <div class="row">
-          <span class="k"> Url Client</span>
+          <span class="k">Backend local (7531)</span>
           <span class="v-group">
-            <span class="v" id="endpoint"> http://127.0.0.1:7531 </span>
+            <input
+              type="text"
+              id="endpoint-backend"
+              class="v url-input"
+              spellcheck="false"
+              autocomplete="off"
+              title="Puente del backend Packet Tools. Por defecto 7531 (SERVER_PORT). Pulsa Conectar para aplicar."
+            />
             <button
               type="button"
-              id="copy-url"
+              id="copy-backend"
               class="btn"
-              title="Copiar la URL del cliente"
+              title="Copiar la URL del backend"
             >
               Copiar
             </button>
           </span>
         </div>
         <div class="row">
-          <span class="k">ID de socket</span><span class="v" id="sid">—</span>
+          <span class="k">MCP bridge (7532)</span>
+          <span class="v-group">
+            <input
+              type="text"
+              id="endpoint-mcp"
+              class="v url-input"
+              spellcheck="false"
+              autocomplete="off"
+              title="Puente del servidor MCP. Por defecto 7532 (MCP_BRIDGE_PORT). Pulsa Conectar para aplicar."
+            />
+            <button
+              type="button"
+              id="copy-mcp"
+              class="btn"
+              title="Copiar la URL del puente MCP"
+            >
+              Copiar
+            </button>
+          </span>
+        </div>
+        <div class="row">
+          <span class="k">ID de socket · backend</span
+          ><span class="v" id="sid-backend">—</span>
+        </div>
+        <div class="row">
+          <span class="k">ID de socket · MCP</span
+          ><span class="v" id="sid-mcp">—</span>
         </div>
         <div class="row">
           <span class="k">Herramientas llamadas</span

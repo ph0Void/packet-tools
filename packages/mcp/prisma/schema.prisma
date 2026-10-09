@@ -1,0 +1,187 @@
+// ---------------------------------------------------------------------------
+// Base de datos PROPIA del servidor MCP de Packet Tools.
+//
+// POR QUÉ EXISTE (y por qué NO reutiliza la BD de `packages/server`):
+// el MCP se decidió como proceso INDEPENDIENTE que habla directamente con los
+// clientes de transporte (ciscoClient, Gns3Client, SshClient, ...). Los clientes
+// de terminal y el bridge de Packet Tracer no necesitan base de datos, pero
+// GNS3 sí: `Gns3Client.forRequest()` resuelve host/usuario/contraseña desde la
+// tabla `DeviceProviders` y no admite variables de entorno. Sin esta BD, GNS3
+// sería inutilizable desde el MCP.
+//
+// Se guarda AQUÍ SOLO lo mínimo para que el MCP funcione por su cuenta:
+// credenciales de GNS3, valores por defecto de serial y las skills del usuario.
+// No se replican usuarios, chats, topologías ni logs: eso es del backend.
+//
+// El archivo SQLite vive junto a este paquete (.packet_tools_mcp.db) y
+// `DATABASE_URL_MCP` permite apuntarlo a otro sitio (p. ej. una ruta absoluta
+// en Docker). Es deliberadamente INDEPENDIENTE de `DATABASE_URL`, que es la del
+// servidor: así el MCP arranca aunque el backend esté parado.
+// ---------------------------------------------------------------------------
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/prisma/generated"
+}
+
+datasource db {
+  provider = "sqlite"
+  // Prisma 7 ya NO admite `url` aquí: la conexión se declara en
+  // `prisma.config.ts` (para Migrate) y se pasa `adapter` al constructor de
+  // PrismaClient (ver src/prisma/lib/PrismaClient.ts). Es el mismo patrón que
+  // usa `packages/server`, que también compila contra Prisma 7.
+}
+
+/// Tipos de dispositivo del MCP. Se alinea a propósito con el enum `TypeDevice`
+/// del servidor (`packages/server/prisma/schema.prisma`) para que las mismas
+/// credenciales se puedan copiar de un lado a otro sin traducción, incluido
+/// JUNOS, que el servidor no tiene pero su motor de vendors sí reconoce
+/// (`VendorProfile.ts`). `GENERIC` es el cajón para equipos no identificados.
+enum TypeDeviceMcp {
+  PACKET_TRACER
+  GNS3
+  CISCO
+  HUAWEI
+  ARUBA
+  MIKROTIK
+  JUNOS
+  GENERIC
+}
+
+/// Protocolo de acceso al equipo.
+/// SIMULATION es para Packet Tracer y GNS3 (no hay socket TCP propio);
+/// el resto son transportes reales.
+enum ConnectionProtocolMcp {
+  SIMULATION
+  SSH
+  TELNET
+  SERIAL
+}
+
+/// Dispositivo configurado en el MCP.
+///
+/// Es la fuente de credenciales de GNS3 y de los valores por defecto de los
+/// transportes reales. `typeDevice` es lo que alimenta el nivel 1 (declarado) de
+/// la resolución de vendor: si está puesto, el motor de configuración usa ese
+/// perfil sin mirar el prompt; si no, se deduce del banner (`GENERIC`).
+model DeviceProviderMcp {
+  id   String        @id @default(cuid())
+  name String
+  typeDevice TypeDeviceMcp @default(GENERIC)
+
+  protocol ConnectionProtocolMcp @default(SIMULATION)
+
+  /// URL base del API de GNS3 (p. ej. http://localhost:3080/v2) o host del
+  /// equipo en SSH/Telnet.
+  host String?
+  port Int?
+
+  /// Puerto serie (COM3, /dev/ttyUSB0) y velocidad. SerialPort.list() los
+  /// enumera, pero el valor se guarda aquí para no depender del enumerado.
+  serialPort     String?
+  serialBaudrate Int?    @default(9600)
+
+  username String?
+  password String?
+
+  /// Estado cacheado de la última comprobación de conectividad.
+  status String @default("OFFLINE")
+
+  /// Marca de que el registro lo creó el propio MCP (p. ej. al detectar un
+  /// puerto serie). Permite limpiar sin tocar lo que puso el usuario a mano.
+  isTemporary Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  /// Caché de detección de fabricante de este equipo (a lo sumo una).
+  vendorCache VendorCacheMcp?
+
+  @@index([typeDevice])
+  @@index([protocol])
+}
+
+/// Caché de la identificación de fabricante de una consola concreta.
+///
+/// POR QUÉ SE PERSISTE: la detección se hace leyendo el banner/prompt, que exige
+/// abrir la consola y esperar salida. Repetirlo en cada comando sería lento y
+/// frágil (un equipo recién arrancado puede no tener prompt todavía). Se guarda
+/// la última detección por proveedor y se refresca cuando el usuario lo pide.
+model VendorCacheMcp {
+  id String @id @default(cuid())
+
+  providerId String @unique
+  provider   DeviceProviderMcp @relation(fields: [providerId], references: [id], onDelete: Cascade)
+
+  /// Id del perfil resuelto: cisco | huawei | mikrotik | aruba | junos | conservative
+  vendorId String
+
+  /// Prompt real que se leyó cuando se detectó (diagnóstico y re-verificación).
+  prompt    String?
+  /// De dónde salió: "declarado" (typeDevice) | "prompt" | "conservative"
+  source    String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+/// Skill del usuario: instrucciones en markdown que se inyectan como contexto.
+///
+/// El MCP las lee de DOS sitios, y esta tabla es el segundo:
+///  1. `packages/mcp/skills/*.md` en disco (editable sin tocar la BD).
+///  2. Esta tabla, para las skills que el propio agente crea vía tool.
+/// Se guardan en BD y no en disco para que `create_skill`/`update_skill`
+/// funcionen en entornos donde el paquete es de solo lectura (npx, Docker).
+model SkillMcp {
+  id String @id @default(cuid())
+
+  /// Identificador estable en kebab-case; es el nombre con el que el modelo la
+  /// invoca y el que aparece en `@skill:<slug>`.
+  slug        String @unique
+  title       String
+  description String?
+  /// Cuerpo markdown completo, con las instrucciones libres del usuario.
+  content     String
+
+  /// Origen: "file" si vino de skills/*.md, "agent" si la creó el modelo.
+  source String @default("agent")
+
+  enabled Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([enabled])
+}
+
+/// Plan generado por `@plan` y consumido por `@execute`.
+///
+/// POR QUÉ PERSISTE: `@execute` sin argumento debe poder retomar "el último plan
+/// de la sesión". El archivo markdown en `plans/` es el registro AUDITABLE que
+/// ve el usuario; esta fila es el índice que permite encontrarlo y saber si ya
+/// se ejecutó, sin tener que listar y parsear todo el directorio.
+model PlanRecordMcp {
+  id String @id @default(cuid())
+
+  /// Objetivo tal cual lo pidió el usuario.
+  objective String
+  /// Ruta del markdown en disco, relativa a la raíz del paquete.
+  filePath String
+
+  /// PENDING | RUNNING | DONE | FAILED | ABORTED
+  status String @default("PENDING")
+
+  /// Nº de pasos del checklist y cuántos se completaron, para el resumen.
+  totalSteps     Int @default(0)
+  completedSteps Int @default(0)
+  failedSteps    Int @default(0)
+
+  /// Último error registrado, si el plan terminó fallando.
+  lastError String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status])
+  @@index([createdAt])
+}

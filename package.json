@@ -5,9 +5,10 @@
   "main": "index.js",
   "packageManager": "npm@10.8.2",
   "scripts": {
-    "dev": "dotenv -e .env -- turbo dev",
+    "dev": "dotenv -e .env -- turbo dev --filter=@packet-tools/server --filter=@packet-tools/web",
     "dev:server": "dotenv -e .env -- turbo dev --filter=@packet-tools/server",
     "dev:web": "dotenv -e .env -- turbo dev --filter=@packet-tools/web",
+    "dev:mcp": "dotenv -e .env -- turbo dev --filter=@packet-tools/mcp",
     "init": "cp .example.env .env && npm install",
     "build": "dotenv -e .env -- turbo build",
     "build-desktop": "node packages/desktop/scripts/build.mjs",

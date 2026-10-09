@@ -1,4 +1,4 @@
-# Packet Tools
+# Packet Tools AI - Multi-Agent Network Automation Platfor
 
 ![Licencia](https://img.shields.io/badge/licencia-ISC-blue)
 ![Node.js](https://img.shields.io/badge/Node.js-%3E%3D%2020-339933)
@@ -94,18 +94,18 @@ El agente no es un chatbot que solo responde texto: es un **controlador de conso
 
 ## Stack tecnológico
 
-| Capa | Tecnología |
-| --- | --- |
-| Backend | Node.js, TypeScript, Express 5, `tsx`, Socket.IO |
-| IA | LangChain + Deep Agents (`deepagents`), OpenAI, Google, Anthropic, OpenRouter, Ollama, LM Studio, custom |
-| Base de datos | Prisma 7 + SQLite (`better-sqlite3`) |
-| Frontend | Next.js 16 (App Router), React 19 + React Compiler, Tailwind CSS v4, shadcn UI, Zustand |
-| Escritorio | Electron + electron-builder (instalador NSIS, AppImage, `.deb`) |
-| Terminal y topologías | `@xterm/xterm`, React Flow (`@xyflow/react`) |
-| Conectividad | `ssh2`, Telnet sobre `net`, `serialport`, cliente REST de GNS3 |
-| Pruebas | Vitest + Supertest (backend) |
-| Monorepo | npm workspaces + Turborepo |
-| Contenedores | Docker + Docker Compose |
+| Capa                  | Tecnología                                                                                               |
+| --------------------- | -------------------------------------------------------------------------------------------------------- |
+| Backend               | Node.js, TypeScript, Express 5, `tsx`, Socket.IO                                                         |
+| IA                    | LangChain + Deep Agents (`deepagents`), OpenAI, Google, Anthropic, OpenRouter, Ollama, LM Studio, custom |
+| Base de datos         | Prisma 7 + SQLite (`better-sqlite3`)                                                                     |
+| Frontend              | Next.js 16 (App Router), React 19 + React Compiler, Tailwind CSS v4, shadcn UI, Zustand                  |
+| Escritorio            | Electron + electron-builder (instalador NSIS, AppImage, `.deb`)                                          |
+| Terminal y topologías | `@xterm/xterm`, React Flow (`@xyflow/react`)                                                             |
+| Conectividad          | `ssh2`, Telnet sobre `net`, `serialport`, cliente REST de GNS3                                           |
+| Pruebas               | Vitest + Supertest (backend)                                                                             |
+| Monorepo              | npm workspaces + Turborepo                                                                               |
+| Contenedores          | Docker + Docker Compose                                                                                  |
 
 ## Estructura del repositorio
 
@@ -164,17 +164,17 @@ npm run seed       # carga datos iniciales (usuario admin, dispositivos y modelo
 npm run dev        # backend + frontend en paralelo (Turborepo)
 ```
 
-| Servicio | URL |
-| --- | --- |
-| Frontend (dashboard) | `http://localhost:3090` |
+| Servicio                  | URL                     |
+| ------------------------- | ----------------------- |
+| Frontend (dashboard)      | `http://localhost:3090` |
 | Backend (API + Socket.IO) | `http://localhost:7531` |
 
 Los puertos se definen en el `.env` raíz (`PORT` y `SERVER_PORT`).
 
 ### 4. Iniciar sesión
 
-| Usuario | Contraseña | Rol |
-| --- | --- | --- |
+| Usuario | Contraseña | Rol     |
+| ------- | ---------- | ------- |
 | `admin` | `admin123` | `ADMIN` |
 
 > Advertencia: cambia la contraseña de `admin` y define un `JWT_SECRET` propio antes de exponer el servicio fuera de tu equipo. La clave incluida en `.example.env` es solo de ejemplo.
@@ -201,12 +201,12 @@ Packet Tools incluye un **instalador de escritorio** (Electron + electron-builde
 2. Ejecuta el instalador (permite elegir la carpeta de instalación y crea accesos directos).
 3. Abre **Packet Tools**: la aplicación levanta el backend y el frontend, y abre su propia ventana. El primer arranque aplica las migraciones, ejecuta el seed y crea el usuario `admin` / `admin123`.
 
-| Detalle | Valor |
-| --- | --- |
-| Requisitos | Windows 10/11 (x64); puertos `7531` y `3090` libres |
+| Detalle               | Valor                                                                                                |
+| --------------------- | ---------------------------------------------------------------------------------------------------- |
+| Requisitos            | Windows 10/11 (x64); puertos `7531` y `3090` libres                                                  |
 | Datos y configuración | `%APPDATA%\Packet Tools` (base de datos, `uploads/`, `logs/` y secreto JWT generado automáticamente) |
-| Servicios | Backend en `http://localhost:7531` y frontend en `http://localhost:3090` |
-| Otras plataformas | El mismo pipeline genera `AppImage` y `.deb` para Linux |
+| Servicios             | Backend en `http://localhost:7531` y frontend en `http://localhost:3090`                             |
+| Otras plataformas     | El mismo pipeline genera `AppImage` y `.deb` para Linux                                              |
 
 Para generar el instalador desde el código fuente:
 
@@ -226,13 +226,13 @@ cp .example.env .env     # si aún no existe
 docker compose up --build
 ```
 
-| Recurso | Detalle |
-| --- | --- |
-| Frontend | `http://localhost:3090` |
-| Backend | `http://localhost:7531` |
-| Datos | Volumen `packet-tools-data` montado en `/app/data` (`DATABASE_URL=file:/app/data/packet_tools.db`) |
+| Recurso  | Detalle                                                                                               |
+| -------- | ----------------------------------------------------------------------------------------------------- |
+| Frontend | `http://localhost:3090`                                                                               |
+| Backend  | `http://localhost:7531`                                                                               |
+| Datos    | Volumen `packet-tools-data` montado en `/app/data` (`DATABASE_URL=file:/app/data/packet_tools.db`)    |
 | Arranque | El entrypoint aplica migraciones (`prisma migrate deploy`), ejecuta el seed y levanta ambos servicios |
-| Salud | Healthcheck contra `GET /api/health` |
+| Salud    | Healthcheck contra `GET /api/health`                                                                  |
 
 Notas:
 
@@ -252,40 +252,40 @@ Todas viven en el `.env` de la raíz del monorepo. Plantilla: [`.example.env`](.
 
 > El `.env`, la base de datos SQLite (`packages/server/.packet_tool_database.db`) y los archivos subidos (`packages/server/uploads/`) están gitignoreados y nunca se publican en el repositorio.
 
-| Variable | Descripción | Valor por defecto |
-| --- | --- | --- |
-| `NAME` | Nombre del proyecto | `Packet Tools` |
-| `VERSION` | Versión visible | `1.2.0` |
-| `SERVER_PORT` | Puerto del backend | `7531` |
-| `PORT` | Puerto del frontend | `3090` |
-| `NODE_ENV` | Entorno (`development` / `production` / `test`) | `development` |
-| `DATABASE_URL` | Ruta del archivo SQLite (relativa a `packages/server`) | `file:.packet_tool_database.db` |
-| `JWT_SECRET` | Clave de firma de los JWT | cadena aleatoria larga |
-| `JWT_EXPIRATION` | Vigencia del token en segundos o string (`30d`) | `36000` |
-| `RATE_LIMIT_REFRESH` | Ventana del rate limit en ms | `900000` |
-| `RATE_LIMIT_REQUESTS` | Peticiones por ventana | `100` |
-| `NEXT_PUBLIC_API_URL` | URL base del backend | `http://localhost:7531` |
-| `NEXT_PUBLIC_PROYECT_NAME` | Nombre mostrado en el frontend | `Packet Tools AI` |
-| `DESKTOP_OBFUSCATE` | Compila backend y frontend a bytecode V8 antes de empaquetar el instalador | `true` |
-| `NEXT_PUBLIC_COOKIE_NAME` | Nombre de la cookie de sesión | `packet-tools-cookie` |
+| Variable                   | Descripción                                                                | Valor por defecto               |
+| -------------------------- | -------------------------------------------------------------------------- | ------------------------------- |
+| `NAME`                     | Nombre del proyecto                                                        | `Packet Tools`                  |
+| `VERSION`                  | Versión visible                                                            | `1.2.0`                         |
+| `SERVER_PORT`              | Puerto del backend                                                         | `7531`                          |
+| `PORT`                     | Puerto del frontend                                                        | `3090`                          |
+| `NODE_ENV`                 | Entorno (`development` / `production` / `test`)                            | `development`                   |
+| `DATABASE_URL`             | Ruta del archivo SQLite (relativa a `packages/server`)                     | `file:.packet_tool_database.db` |
+| `JWT_SECRET`               | Clave de firma de los JWT                                                  | cadena aleatoria larga          |
+| `JWT_EXPIRATION`           | Vigencia del token en segundos o string (`30d`)                            | `36000`                         |
+| `RATE_LIMIT_REFRESH`       | Ventana del rate limit en ms                                               | `900000`                        |
+| `RATE_LIMIT_REQUESTS`      | Peticiones por ventana                                                     | `100`                           |
+| `NEXT_PUBLIC_API_URL`      | URL base del backend                                                       | `http://localhost:7531`         |
+| `NEXT_PUBLIC_PROYECT_NAME` | Nombre mostrado en el frontend                                             | `Packet Tools AI`               |
+| `DESKTOP_OBFUSCATE`        | Compila backend y frontend a bytecode V8 antes de empaquetar el instalador | `true`                          |
+| `NEXT_PUBLIC_COOKIE_NAME`  | Nombre de la cookie de sesión                                              | `packet-tools-cookie`           |
 
 ## Scripts disponibles
 
 Desde la raíz del monorepo:
 
-| Script | Descripción |
-| --- | --- |
-| `npm run init` | Copia `.example.env` a `.env` e instala dependencias |
-| `npm run dev` | Levanta backend y frontend en paralelo |
-| `npm run build` | Compila backend y frontend |
-| `npm run build-desktop` | Genera el instalador de escritorio (Electron); acepta `-- --win` / `-- --linux` |
-| `npm run lint` | ESLint del frontend |
-| `npm run migrate` | Crea y aplica migraciones (desarrollo) |
-| `npm run generate` | Regenera el cliente de Prisma |
-| `npm run reset` | Recrea la base de datos (destructivo) |
-| `npm run seed` | Carga los datos iniciales |
-| `npm run studio` | Abre Prisma Studio |
-| `npm test` | Ejecuta la suite de pruebas del backend (84 suites) |
+| Script                                                                                         | Descripción                                                                            |
+| ---------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
+| `npm run init`                                                                                 | Copia `.example.env` a `.env` e instala dependencias                                   |
+| `npm run dev`                                                                                  | Levanta backend y frontend en paralelo                                                 |
+| `npm run build`                                                                                | Compila backend y frontend                                                             |
+| `npm run build-desktop`                                                                        | Genera el instalador de escritorio (Electron); acepta `-- --win` / `-- --linux`        |
+| `npm run lint`                                                                                 | ESLint del frontend                                                                    |
+| `npm run migrate`                                                                              | Crea y aplica migraciones (desarrollo)                                                 |
+| `npm run generate`                                                                             | Regenera el cliente de Prisma                                                          |
+| `npm run reset`                                                                                | Recrea la base de datos (destructivo)                                                  |
+| `npm run seed`                                                                                 | Carga los datos iniciales                                                              |
+| `npm run studio`                                                                               | Abre Prisma Studio                                                                     |
+| `npm test`                                                                                     | Ejecuta la suite de pruebas del backend (84 suites)                                    |
 | `npm run test-pt` / `test-terminal` / `test-telnet` / `test-ssh` / `test-serial` / `test-gns3` | Suites en vivo contra transportes reales (requieren hardware o simuladores conectados) |
 
 Pruebas:
@@ -298,11 +298,11 @@ npm test -- --watch             # modo watch
 
 ## Roles y permisos
 
-| Rol | Alcance |
-| --- | --- |
-| `USER` | Lectura de recursos, chats propios, alertas propias, terminal en modo solo lectura y uso de los modelos habilitados por el `ADMIN` |
+| Rol     | Alcance                                                                                                                                      |
+| ------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| `USER`  | Lectura de recursos, chats propios, alertas propias, terminal en modo solo lectura y uso de los modelos habilitados por el `ADMIN`           |
 | `STAFF` | Todo lo anterior más CRUD de dispositivos, topologías, alertas, tareas programadas y base de conocimiento; aprobaciones HITL y modo autónomo |
-| `ADMIN` | Gestión completa: usuarios, proveedores de IA, configuración global, borrado de logs y todas las operaciones anteriores |
+| `ADMIN` | Gestión completa: usuarios, proveedores de IA, configuración global, borrado de logs y todas las operaciones anteriores                      |
 
 ## Próximos cambios
 

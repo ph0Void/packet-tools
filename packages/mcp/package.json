@@ -1,0 +1,54 @@
+{
+  "name": "@packet-tools/mcp",
+  "version": "1.0.0",
+  "description": "Servidor MCP de Packet Tools",
+  "main": "dist/app.js",
+  "bin": {
+    "packet-tools-mcp": "dist/app.js"
+  },
+  "scripts": {
+    "dev": "tsx watch src/app.ts",
+    "build": "node scripts/prisma-generate.mjs && tsc && node scripts/rewrite-dist.mjs",
+    "start": "node dist/app.js",
+    "migrate": "prisma migrate dev --name packet-tools-mcp",
+    "migrate:deploy": "prisma migrate deploy",
+    "generate": "prisma generate",
+    "reset": "prisma migrate reset --force",
+    "test": "tsx test/smoke.ts",
+    "test:bridge": "tsx test/bridge.test.ts",
+    "test:protocol": "node scripts/verificar-protocolo.cjs",
+    "inspect-db": "node scripts/inspect-db.cjs"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "packet-tracer",
+    "gns3",
+    "serial"
+  ],
+  "author": "",
+  "license": "MIT",
+  "type": "commonjs",
+  "devDependencies": {
+    "@types/node": "^20.19.43",
+    "prisma": "^7.8.0",
+    "tsx": "^4.23.15",
+    "typescript": "^5.9.3"
+  },
+  "dependencies": {
+    "@langchain/core": "^1.2.17",
+    "@langchain/langgraph": "^1.4.21",
+    "@langchain/mcp-adapters": "^2.0.1",
+    "@modelcontextprotocol/sdk": "^1.30.0",
+    "@prisma/adapter-better-sqlite3": "^7.8.0",
+    "@prisma/client": "^7.8.0",
+    "better-sqlite3": "^12.10.0",
+    "dotenv": "^17.4.2",
+    "serialport": "^13.0.0",
+    "socket.io": "^4.8.3",
+    "socket.io-client": "^4.8.3",
+    "ssh2": "^1.17.0",
+    "uuid": "^14.0.0",
+    "zod": "^4.4.3"
+  }
+}
