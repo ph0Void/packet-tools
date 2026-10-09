@@ -1,4 +1,4 @@
-# SISTEMA DE CISCO MANAGMENT
+# PACKET TOOLS (legacy)
 
 Sistema de gestión de red con topología visual, monitorización en tiempo real y agente inteligente.
 
