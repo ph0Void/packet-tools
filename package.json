@@ -1,7 +1,8 @@
 {
-  "name": "Packet Tools",
+  "name": "@packet-tools/root",
   "version": "1.2.1",
-  "description": "Proyecto de automatizacion  para la configuracion de equipos de red",
+  "description": "Plataforma de automatizacion y gestion de redes con agentes de IA",
+  "private": true,
   "main": "index.js",
   "packageManager": "npm@10.8.2",
   "scripts": {
